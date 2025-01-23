@@ -1,3 +1,9 @@
+mod pass1;
+use crate::pass1::process_file;
+
 fn main() {
-    println!("Hello, world!");
+    let file_path = "src/in.txt";
+    if let Err(err) = process_file(file_path) {
+        eprintln!("Error processing file: {}", err);
+    }
 }
