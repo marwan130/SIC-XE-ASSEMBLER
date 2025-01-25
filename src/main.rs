@@ -1,9 +1,14 @@
 mod pass1;
-use crate::pass1::process_file;
+use crate::pass1::Pass1;
+pub mod conversions;
 
 fn main() {
     let file_path = "src/in.txt";
-    if let Err(err) = process_file(file_path) {
+    let mut processor = Pass1::new();
+    if let Err(err) = processor.process_file(file_path) {
         eprintln!("Error processing file: {}", err);
     }
+    
+    processor.blocks_generator();
+
 }
