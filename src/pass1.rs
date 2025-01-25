@@ -53,9 +53,18 @@ impl Pass1 {
                     self.ref_data.push(parts[2].trim_end_matches(',').to_string());
                 }
                 2 => {
-                    self.labels.push("&".to_string());
-                    self.instr.push(parts[0].trim_end_matches(',').to_string());
-                    self.ref_data.push(parts[1].trim_end_matches(',').to_string());
+                    if parts[0].trim_end_matches(',').to_string() == "*"
+                    {
+                        self.labels.push(parts[0].trim_end_matches(',').to_string());
+                        self.instr.push(parts[1].trim_end_matches(',').to_string());
+                        self.ref_data.push("&".to_string());
+                    }
+                    else
+                    {
+                        self.labels.push("&".to_string());
+                        self.instr.push(parts[0].trim_end_matches(',').to_string());
+                        self.ref_data.push(parts[1].trim_end_matches(',').to_string());
+                    }
                 }
                 1 => {
                     self.labels.push("&".to_string());
@@ -196,12 +205,10 @@ impl Pass1 {
                 _ if format4f.contains(&instr_type.as_str()) | instr_type.starts_with('+') => base_locctr + 4, 
 
                 //handling literals
-                _ if instr_type.starts_with('=') => {
-                    base_locctr + self.calculate_literal_byte_size(instr_type)
-                },
+                _ if instr_type.starts_with("=") => base_locctr + self.calculate_literal_byte_size(instr_type),
                 "EQU" => if ref_type.starts_with('*') {base_locctr} 
                 else { self.calculate_difference(ref_type)},
-                _ => base_locctr + 3, // default size for other instructions
+                _ => base_locctr + 3, // default to format3
             };
 
             // update locctr
@@ -241,11 +248,11 @@ impl Pass1 {
     }
 
     fn calculate_literal_byte_size(&self, instr_type: &str) -> usize {
-        if instr_type.starts_with('X') {
-            (instr_type.len() - 3) / 2
+        if instr_type.contains('X') {
+            (instr_type.len() - 4) / 2
         } 
-        else if instr_type.starts_with('C') {
-            instr_type.len() - 3
+        else if instr_type.contains('C') {
+            instr_type.len() - 4
         } 
         else {
             0
