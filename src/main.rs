@@ -9,6 +9,6 @@ fn main() {
         eprintln!("Error processing file: {}", err);
     }
     
-    processor.blocks_generator();
+    processor.pass1_generator();
 
 }

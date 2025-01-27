@@ -3,7 +3,6 @@ use std::fs::File;
 use std::io::{self, Write, BufRead};
 use std::collections::HashMap;
 use itertools::izip;
-
 pub struct Pass1 {
     pub lines: Vec<String>,
     pub labels: Vec<String>,
@@ -88,7 +87,7 @@ impl Pass1 {
         Ok(())
     }
 
-    pub fn blocks_generator(&mut self) {
+    pub fn pass1_generator(&mut self) {
         self.initialize_location_counters();
 
         let mut pass1_file = File::create("src/out_pass1.txt").unwrap();
@@ -181,57 +180,77 @@ impl Pass1 {
         let ref_type = &self.ref_data[i];
         let format1 = ["FIX", "FLOAT", "HIO", "SIO", "TIO", "NORM"];
         let format2=["ADDR", "CLEAR", "COMPR", "DIVR", "MULR", "RMO", "SHIFTR", "SHIFTL", "SUBR", "SVC", "TIXR"];
-        let format3=["ADD", "ADDF", "AND", "COMP", "COMPF", "DIV", "J", "JEQ", "JGT", "JLT", "JSUB", "LDA", "LDB", "LDCH", "LDF", "LDL", "LDS", "LDT", "LDX", "LPS", "MUL", "MULF", "OR", "RD", "RSUB", "SSK", "STA", "STB", "STCH", "STF", "STI", "STL", "STS", "STSW", "STT", "STX", "SUB", "SUBF", "TD", "TIX", "WD"];
+        /*let format3 = ["ADD", "ADDF", "AND", "COMP", "COMPF", "DIV", "J", "JEQ", "JGT", "JLT", "JSUB", "LDA", "LDB", "LDCH", "LDF", "LDL", "LDS", "LDT", "LDX", "LPS", "MUL", "MULF", "OR", "RD", "RSUB", "SSK", "STA", "STB", "STCH", "STF", "STI", "STL", "STS", "STSW", "STT", "STX", "SUB", "SUBF", "TD", "TIX", "WD"];*/
         let format4f=["CADD", "CSUB", "CLOAD", "CSTORE", "CJUMP"];
 
         if i == 0 {
             self.locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
             self.default_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
+            self.defaultb_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
+            self.cdata_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
+            self.cblks_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
         }
 
         else {
             let base_locctr_str: Option<&String> = self.locctr.get(&i);
             let base_locctr: usize = match base_locctr_str {Some(val) => usize::from_str_radix(&val, 16).unwrap_or(0), None => 0,};
 
-            let new_locctr = match instr_type.as_str() {
-                "RESW" => base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3,
-                "RESB" => base_locctr + ref_type.parse::<usize>().unwrap_or(0),
-                "WORD" | "RSUB" => base_locctr + 3,
-                "BYTE" => base_locctr + self.calculate_byte_size(ref_type),
-                "BASE" | "LTORG" => string_to_usize(""),
-                _ if format1.contains(&instr_type.as_str()) => base_locctr + 1,
-                _ if format2.contains(&instr_type.as_str()) => base_locctr + 2,
-                _ if format3.contains(&instr_type.as_str()) => base_locctr + 3,
-                _ if format4f.contains(&instr_type.as_str()) | instr_type.starts_with('+') => base_locctr + 4, 
+            let default_locctr_str: Option<&String> = self.default_locctr.get(&i);
+            let default_locctr: usize = match default_locctr_str {Some(val) => usize::from_str_radix(&val, 16).unwrap_or(0), None => 0,};
 
-                //handling literals
-                _ if instr_type.starts_with("=") => base_locctr + self.calculate_literal_byte_size(instr_type),
-                "EQU" => if ref_type.starts_with('*') {base_locctr} 
-                else { self.calculate_difference(ref_type)},
-                _ => base_locctr + 3, // default to format3
+            let defaultb_locctr_str: Option<&String> = self.defaultb_locctr.get(&i);
+            let defaultb_locctr: usize = match defaultb_locctr_str {Some(val) => usize::from_str_radix(&val, 16).unwrap_or(0), None => 0,};
+
+            let cdata_locctr_str: Option<&String> = self.cdata_locctr.get(&i);
+            let cdata_locctr: usize = match cdata_locctr_str {Some(val) => usize::from_str_radix(&val, 16).unwrap_or(0), None => 0,};
+
+            let cblks_locctr_str: Option<&String> = self.cblks_locctr.get(&i);
+            let cblks_locctr: usize = match cblks_locctr_str {Some(val) => usize::from_str_radix(&val, 16).unwrap_or(0), None => 0,};
+
+            let (new_locctr, new_default_locctr, new_defaultb_locctr, new_cdata_locctr, new_cblks_locctr) = match instr_type.as_str() {
+                _ if format1.contains(&instr_type.as_str()) => (base_locctr + 1, default_locctr + 1, defaultb_locctr, cdata_locctr, cblks_locctr),
+                _ if format2.contains(&instr_type.as_str()) => (base_locctr + 2, default_locctr + 2, defaultb_locctr, cdata_locctr, cblks_locctr),
+                _ if format4f.contains(&instr_type.as_str()) | instr_type.starts_with('+') => (base_locctr + 4, default_locctr, defaultb_locctr + 4, cdata_locctr, cblks_locctr),
+                "WORD" => (base_locctr + 3, default_locctr, defaultb_locctr, cdata_locctr + 3, cblks_locctr),
+                "BYTE" => (base_locctr + self.calculate_byte_size(ref_type), default_locctr, defaultb_locctr, cdata_locctr + self.calculate_byte_size(ref_type), cblks_locctr),
+                "RESW" => {
+                    if ref_type.parse::<usize>().unwrap_or(0) < 500 {
+                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, default_locctr, defaultb_locctr, cdata_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, cblks_locctr)
+                    } else {
+                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3)
+                    }
+                },
+                "RESB" => {
+                    if ref_type.parse::<usize>().unwrap() < 1500 {
+                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, default_locctr, defaultb_locctr, cdata_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, cblks_locctr)
+                    } else {
+                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1)
+                    }
+                },
+                //handling literals 
+                _ if instr_type.starts_with("=") => (base_locctr + self.calculate_literal_byte_size(instr_type), default_locctr, defaultb_locctr, cdata_locctr + self.calculate_literal_byte_size(instr_type), cblks_locctr),
+                "EQU" => {
+                    if ref_type.starts_with('*') {
+                        (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr)
+                    } else {
+                        let diff = self.calculate_difference(ref_type);
+                        (diff, diff, diff, diff, diff)
+                    }
+                },
+                "BASE" | "LTORG" => (string_to_usize(""), string_to_usize(""), string_to_usize(""), string_to_usize(""), string_to_usize("")),
+                // handling blocks
+                "USE" => (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr),
+                _ => (base_locctr + 3, default_locctr, defaultb_locctr + 3, cdata_locctr, cblks_locctr), //default to format 3
             };
 
-            // update locctr
-            let hexalocctr = usize_to_string(new_locctr);
-
-            // handle empty strings
-            if hexalocctr == "" {
-                let nextlocctr = self.locctr.get(&(i)).unwrap().clone();
-                self.locctr.insert(i, hexalocctr.clone());
-                self.locctr.insert(i+1, nextlocctr.clone());
-            } 
-            // if the current instruction is EQU and the reference type is not a literal, then the next locctr should be the same as the current locctr
-            else if instr_type.starts_with("EQU") && !ref_type.starts_with('*') {
-                let nextlocctr = self.locctr.get(&(i)).unwrap().clone();
-                self.locctr.insert(i, hexalocctr.clone());
-                self.locctr.insert(i+1, nextlocctr.clone());
-            }
-            else {
-            self.locctr.insert(i+1, hexalocctr.clone());
-            }
+            self.locctr.turn_to_hexa(i, new_locctr, instr_type, ref_type);
+            self.default_locctr.turn_to_hexa(i, new_default_locctr, instr_type, ref_type);
+            self.defaultb_locctr.turn_to_hexa(i, new_defaultb_locctr, instr_type, ref_type);
+            self.cdata_locctr.turn_to_hexa(i, new_cdata_locctr, instr_type, ref_type);
+            self.cblks_locctr.turn_to_hexa(i, new_cblks_locctr, instr_type, ref_type);
         }
 
-        let final_locctr_value = self.locctr.get(&i).unwrap();
+        let final_locctr_value = self.default_locctr.get(&i).unwrap();
         writeln!(pass1_file, "{}\t{}\t{}\t{}", final_locctr_value, self.labels[i], instr_type, ref_type).unwrap();
     }
 
@@ -258,4 +277,5 @@ impl Pass1 {
             0
         }
     }
+
 }
