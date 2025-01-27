@@ -97,11 +97,11 @@ impl Pass1 {
     }
 
     fn initialize_location_counters(&mut self) {
-        self.locctr.insert(0, "".to_string());
-        self.default_locctr.insert(0, "".to_string());
-        self.defaultb_locctr.insert(0, "".to_string());
-        self.cdata_locctr.insert(0, "".to_string());
-        self.cblks_locctr.insert(0, "".to_string());
+            self.locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
+            self.default_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
+            self.defaultb_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
+            self.cdata_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
+            self.cblks_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
     }    
 
     fn calculate_difference(&self, input: &str) -> usize {
@@ -178,6 +178,7 @@ impl Pass1 {
     fn update_locctr(&mut self, i: usize, pass1_file: &mut File) {
         let instr_type = &self.instr[i];
         let ref_type = &self.ref_data[i];
+        let labels_type = &self.labels[i];
         let format1 = ["FIX", "FLOAT", "HIO", "SIO", "TIO", "NORM"];
         let format2=["ADDR", "CLEAR", "COMPR", "DIVR", "MULR", "RMO", "SHIFTR", "SHIFTL", "SUBR", "SVC", "TIXR"];
         /*let format3 = ["ADD", "ADDF", "AND", "COMP", "COMPF", "DIV", "J", "JEQ", "JGT", "JLT", "JSUB", "LDA", "LDB", "LDCH", "LDF", "LDL", "LDS", "LDT", "LDX", "LPS", "MUL", "MULF", "OR", "RD", "RSUB", "SSK", "STA", "STB", "STCH", "STF", "STI", "STL", "STS", "STSW", "STT", "STX", "SUB", "SUBF", "TD", "TIX", "WD"];*/
@@ -189,6 +190,8 @@ impl Pass1 {
             self.defaultb_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
             self.cdata_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
             self.cblks_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
+
+            self.locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
         }
 
         else {
@@ -207,40 +210,52 @@ impl Pass1 {
             let cblks_locctr_str: Option<&String> = self.cblks_locctr.get(&i);
             let cblks_locctr: usize = match cblks_locctr_str {Some(val) => usize::from_str_radix(&val, 16).unwrap_or(0), None => 0,};
 
-            let (new_locctr, new_default_locctr, new_defaultb_locctr, new_cdata_locctr, new_cblks_locctr) = match instr_type.as_str() {
-                _ if format1.contains(&instr_type.as_str()) => (base_locctr + 1, default_locctr + 1, defaultb_locctr, cdata_locctr, cblks_locctr),
-                _ if format2.contains(&instr_type.as_str()) => (base_locctr + 2, default_locctr + 2, defaultb_locctr, cdata_locctr, cblks_locctr),
-                _ if format4f.contains(&instr_type.as_str()) | instr_type.starts_with('+') => (base_locctr + 4, default_locctr, defaultb_locctr + 4, cdata_locctr, cblks_locctr),
-                "WORD" => (base_locctr + 3, default_locctr, defaultb_locctr, cdata_locctr + 3, cblks_locctr),
-                "BYTE" => (base_locctr + self.calculate_byte_size(ref_type), default_locctr, defaultb_locctr, cdata_locctr + self.calculate_byte_size(ref_type), cblks_locctr),
+            let (new_locctr, new_default_locctr, new_defaultb_locctr, new_cdata_locctr, new_cblks_locctr, default_boolean, defaultb_boolean, cdata_boolean, cblks_boolean) = match instr_type.as_str() {
+                _ if format1.contains(&instr_type.as_str()) => (base_locctr + 1, default_locctr + 1, defaultb_locctr, cdata_locctr, cblks_locctr, true, false, false, false),
+                _ if format2.contains(&instr_type.as_str()) => (base_locctr + 2, default_locctr + 2, defaultb_locctr, cdata_locctr, cblks_locctr, true, false, false, false),
+                _ if format4f.contains(&instr_type.as_str()) | instr_type.starts_with('+') => (base_locctr + 4, default_locctr, defaultb_locctr + 4, cdata_locctr, cblks_locctr, false, true, false, false),
+                "WORD" => (base_locctr + 3, default_locctr, defaultb_locctr, cdata_locctr + 3, cblks_locctr, false, false, true, false),
+                "BYTE" => (base_locctr + self.calculate_byte_size(ref_type), default_locctr, defaultb_locctr, cdata_locctr + self.calculate_byte_size(ref_type), cblks_locctr, false, false, true, false),
                 "RESW" => {
                     if ref_type.parse::<usize>().unwrap_or(0) < 500 {
-                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, default_locctr, defaultb_locctr, cdata_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, cblks_locctr)
+                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, default_locctr, defaultb_locctr, cdata_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, cblks_locctr, false, false, true, false)
                     } else {
-                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3)
+                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, false, false, false, true)
                     }
                 },
                 "RESB" => {
                     if ref_type.parse::<usize>().unwrap() < 1500 {
-                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, default_locctr, defaultb_locctr, cdata_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, cblks_locctr)
+                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, default_locctr, defaultb_locctr, cdata_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, cblks_locctr, false, false, true, false)
                     } else {
-                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1)
+                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, false, false, false, true)
                     }
                 },
                 //handling literals 
-                _ if instr_type.starts_with("=") => (base_locctr + self.calculate_literal_byte_size(instr_type), default_locctr, defaultb_locctr, cdata_locctr + self.calculate_literal_byte_size(instr_type), cblks_locctr),
+                _ if instr_type.starts_with("=") => (base_locctr + self.calculate_literal_byte_size(instr_type), default_locctr, defaultb_locctr, cdata_locctr + self.calculate_literal_byte_size(instr_type), cblks_locctr, false, false, true, false),
                 "EQU" => {
                     if ref_type.starts_with('*') {
-                        (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr)
+                        (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr, false, false, false, true)
                     } else {
                         let diff = self.calculate_difference(ref_type);
-                        (diff, diff, diff, diff, diff)
+                        (diff, default_locctr, defaultb_locctr, cdata_locctr, diff, false, false, false, true)
                     }
                 },
-                "BASE" | "LTORG" => (string_to_usize(""), string_to_usize(""), string_to_usize(""), string_to_usize(""), string_to_usize("")),
+                "BASE" | "LTORG" => (string_to_usize(""), string_to_usize(""), string_to_usize(""), string_to_usize(""), string_to_usize(""), true, false, false, false),
                 // handling blocks
-                "USE" => (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr),
-                _ => (base_locctr + 3, default_locctr, defaultb_locctr + 3, cdata_locctr, cblks_locctr), //default to format 3
+                "USE" => {
+                    if labels_type == "DEFAULT" {
+                        (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr, true, false, false, false)
+                    } else if labels_type == "DEFAULTB" {
+                        (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr, false, true, false, false)
+                    }
+                    else if labels_type == "CDATA" {
+                        (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr, false, false, true, false)
+                    }
+                    else { 
+                        (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr, false, false, false, true)
+                    } // else cblks
+                },
+                _ => (base_locctr + 3, default_locctr, defaultb_locctr + 3, cdata_locctr, cblks_locctr, false, true, false, false), //default to format 3
             };
 
             self.locctr.turn_to_hexa(i, new_locctr, instr_type, ref_type);
@@ -248,10 +263,24 @@ impl Pass1 {
             self.defaultb_locctr.turn_to_hexa(i, new_defaultb_locctr, instr_type, ref_type);
             self.cdata_locctr.turn_to_hexa(i, new_cdata_locctr, instr_type, ref_type);
             self.cblks_locctr.turn_to_hexa(i, new_cblks_locctr, instr_type, ref_type);
-        }
 
-        let final_locctr_value = self.default_locctr.get(&i).unwrap();
-        writeln!(pass1_file, "{}\t{}\t{}\t{}", final_locctr_value, self.labels[i], instr_type, ref_type).unwrap();
+            // logic to check block used then write to file
+            if default_boolean {
+                self.default_locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
+            }
+            else if defaultb_boolean {
+                self.defaultb_locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
+            }
+            else if cdata_boolean {
+                self.cdata_locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
+            }
+            else if cblks_boolean {
+                self.cblks_locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
+            }
+            else {
+                self.locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
+            }
+        }
     }
 
     fn calculate_byte_size(&self, ref_type: &str) -> usize {

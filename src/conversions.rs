@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{self, Write};
 
 pub fn string_to_usize(s: &str) -> usize {
     if s.is_empty() {
@@ -18,6 +20,8 @@ pub fn usize_to_string(number: usize) -> String {
 
 pub trait LocctrExtensions {
     fn turn_to_hexa(&mut self, i: usize, new_locctr: usize, instr_type: &str, ref_type: &str);
+
+    fn write_to_file(&self, pass1_file: &mut File, i: usize, instr_type: &str, ref_type: &str, labels: &str) -> Result<(), io::Error>;
 }
 
 impl LocctrExtensions for HashMap<usize, String> {
@@ -39,10 +43,24 @@ impl LocctrExtensions for HashMap<usize, String> {
                 self.insert(i + 1, next_locctr);
             }
         }
+        else if instr_type.starts_with("USE") {
+            if let Some(next_locctr) = self.get(&i).cloned() {
+                self.insert(i, hexalocctr.clone());
+                self.insert(i + 1, next_locctr);
+            }
+        }
         // default case: update the next locctr
         else {
             self.insert(i + 1, hexalocctr.clone());
         }
     }
+
+    fn write_to_file(&self, pass1_file: &mut File, i: usize, instr_type: &str, ref_type: &str, labels: &str) -> Result<(), io::Error> {
+        // get the locctr value
+        let final_locctr_value = self.get(&i);
+            writeln!(pass1_file, "{}\t{}\t{}\t{}", final_locctr_value.unwrap_or(&String::new()), labels, instr_type, ref_type)?;
+        Ok(())
+    }
 }
+
 
