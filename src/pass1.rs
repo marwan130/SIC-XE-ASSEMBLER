@@ -94,14 +94,14 @@ impl Pass1 {
         for i in 0..self.lines.len() {
             self.update_locctr(i, &mut pass1_file);
         }
-    }
+    }  
 
     fn initialize_location_counters(&mut self) {
-            self.locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
-            self.default_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
-            self.defaultb_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
-            self.cdata_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
-            self.cblks_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
+        self.locctr.insert(1, format!("{:04X}", usize::from_str_radix(&self.ref_data[0], 16).unwrap()).to_string());
+        self.default_locctr.insert(1, format!("{:04X}", usize::from_str_radix(&self.ref_data[0], 16).unwrap()).to_string());
+        self.defaultb_locctr.insert(1, format!("{:04X}", usize::from_str_radix(&self.ref_data[0], 16).unwrap()).to_string());
+        self.cdata_locctr.insert(1, format!("{:04X}", usize::from_str_radix(&self.ref_data[0], 16).unwrap()).to_string());
+        self.cblks_locctr.insert(1, format!("{:04X}", usize::from_str_radix(&self.ref_data[0], 16).unwrap()).to_string());
     }    
 
     fn calculate_difference(&self, input: &str) -> usize {
@@ -183,14 +183,12 @@ impl Pass1 {
         let format2=["ADDR", "CLEAR", "COMPR", "DIVR", "MULR", "RMO", "SHIFTR", "SHIFTL", "SUBR", "SVC", "TIXR"];
         /*let format3 = ["ADD", "ADDF", "AND", "COMP", "COMPF", "DIV", "J", "JEQ", "JGT", "JLT", "JSUB", "LDA", "LDB", "LDCH", "LDF", "LDL", "LDS", "LDT", "LDX", "LPS", "MUL", "MULF", "OR", "RD", "RSUB", "SSK", "STA", "STB", "STCH", "STF", "STI", "STL", "STS", "STSW", "STT", "STX", "SUB", "SUBF", "TD", "TIX", "WD"];*/
         let format4f=["CADD", "CSUB", "CLOAD", "CSTORE", "CJUMP"];
+        let defaultblock = ["DEFAULT"];
+        let defaultb = ["DEFAULTB"];
+        let cdata = ["CDATA"];
+        let cblks = ["CBLKS"];
 
         if i == 0 {
-            self.locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
-            self.default_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
-            self.defaultb_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
-            self.cdata_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
-            self.cblks_locctr.insert(1, format!("{:04X}", self.ref_data[0].parse::<usize>().unwrap_or(0)).to_string());
-
             self.locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
         }
 
@@ -217,18 +215,10 @@ impl Pass1 {
                 "WORD" => (base_locctr + 3, default_locctr, defaultb_locctr, cdata_locctr + 3, cblks_locctr, false, false, true, false),
                 "BYTE" => (base_locctr + self.calculate_byte_size(ref_type), default_locctr, defaultb_locctr, cdata_locctr + self.calculate_byte_size(ref_type), cblks_locctr, false, false, true, false),
                 "RESW" => {
-                    if ref_type.parse::<usize>().unwrap_or(0) < 500 {
-                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, default_locctr, defaultb_locctr, cdata_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, cblks_locctr, false, false, true, false)
-                    } else {
-                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, false, false, false, true)
-                    }
+                    (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr + ref_type.parse::<usize>().unwrap_or(0) * 3, false, false, false, true)
                 },
                 "RESB" => {
-                    if ref_type.parse::<usize>().unwrap() < 1500 {
-                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, default_locctr, defaultb_locctr, cdata_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, cblks_locctr, false, false, true, false)
-                    } else {
-                        (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, false, false, false, true)
-                    }
+                    (base_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr + ref_type.parse::<usize>().unwrap_or(0) * 1, false, false, false, true)
                 },
                 //handling literals 
                 _ if instr_type.starts_with("=") => (base_locctr + self.calculate_literal_byte_size(instr_type), default_locctr, defaultb_locctr, cdata_locctr + self.calculate_literal_byte_size(instr_type), cblks_locctr, false, false, true, false),
@@ -240,21 +230,11 @@ impl Pass1 {
                         (diff, default_locctr, defaultb_locctr, cdata_locctr, diff, false, false, false, true)
                     }
                 },
-                "BASE" | "LTORG" => (string_to_usize(""), string_to_usize(""), string_to_usize(""), string_to_usize(""), string_to_usize(""), true, false, false, false),
-                // handling blocks
-                "USE" => {
-                    if labels_type == "DEFAULT" {
-                        (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr, true, false, false, false)
-                    } else if labels_type == "DEFAULTB" {
-                        (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr, false, true, false, false)
-                    }
-                    else if labels_type == "CDATA" {
-                        (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr, false, false, true, false)
-                    }
-                    else { 
-                        (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr, false, false, false, true)
-                    } // else cblks
-                },
+                "BASE" | "LTORG" | "END" => (string_to_usize(""), string_to_usize(""), string_to_usize(""), string_to_usize(""), string_to_usize(""), false, true, false, false),
+                _ if defaultblock.contains(&ref_type.as_str()) => (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr, true, false, false, false),
+                _  if defaultb.contains(&ref_type.as_str()) => (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr, false, true, false, false),
+                _  if cdata.contains(&ref_type.as_str()) => (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr, false, false, true, false),
+                _ if cblks.contains(&ref_type.as_str()) => (base_locctr, default_locctr, defaultb_locctr, cdata_locctr, cblks_locctr, false, false, false, true),
                 _ => (base_locctr + 3, default_locctr, defaultb_locctr + 3, cdata_locctr, cblks_locctr, false, true, false, false), //default to format 3
             };
 
@@ -264,23 +244,36 @@ impl Pass1 {
             self.cdata_locctr.turn_to_hexa(i, new_cdata_locctr, instr_type, ref_type);
             self.cblks_locctr.turn_to_hexa(i, new_cblks_locctr, instr_type, ref_type);
 
-            // logic to check block used then write to file
-            if default_boolean {
-                self.default_locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
+            // checks if sic/xe
+            let mut sic: bool = true;
+            for i in 0..self.instr.len() {
+                if format1.contains(&self.instr[i].as_str()) || format2.contains(&self.instr[i].as_str()) || format4f.contains(&self.instr[i].as_str()) || self.instr[i].starts_with("+") {
+                    sic = false;
+                    break;
+                } 
             }
-            else if defaultb_boolean {
-                self.defaultb_locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
-            }
-            else if cdata_boolean {
-                self.cdata_locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
-            }
-            else if cblks_boolean {
-                self.cblks_locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
+
+            if sic == false {
+                // logic to check block used then write to file
+                if default_boolean == true{
+                    self.default_locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
+                }
+                else if defaultb_boolean == true {
+                    self.defaultb_locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
+                }
+                else if cdata_boolean == true {
+                    self.cdata_locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
+                }
+                else if cblks_boolean == true {
+                    self.cblks_locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
+                } //else cblks
             }
             else {
                 self.locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
             }
+            
         }
+
     }
 
     fn calculate_byte_size(&self, ref_type: &str) -> usize {
