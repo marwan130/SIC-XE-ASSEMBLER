@@ -22,6 +22,10 @@ pub trait LocctrExtensions {
     fn turn_to_hexa(&mut self, i: usize, new_locctr: usize, instr_type: &str, ref_type: &str);
 
     fn write_to_file(&self, pass1_file: &mut File, i: usize, instr_type: &str, ref_type: &str, labels: &str) -> Result<(), io::Error>;
+
+    fn generate_symbol_table(&self, symbol_table: &mut File, labels_type: &str, i: usize) -> Result<(), io::Error>;
+
+    fn generate_literal_table(&self, literal_table: &mut File, labels_type: &str, i: usize) -> Result<(), io::Error>;
 }
 
 impl LocctrExtensions for HashMap<usize, String> {
@@ -53,6 +57,22 @@ impl LocctrExtensions for HashMap<usize, String> {
         // get the locctr value
         let final_locctr_value = self.get(&i);
             writeln!(pass1_file, "{}\t{}\t{}\t{}", final_locctr_value.unwrap_or(&String::new()), labels, instr_type, ref_type)?;
+        Ok(())
+    }
+
+    fn generate_symbol_table(&self, symbol_table: &mut File, labels_type: &str, i: usize) -> Result<(), io::Error> {
+        if labels_type != "&" && labels_type != "*" {
+            let final_locctr_value = self.get(&i);
+            writeln!(symbol_table, "{}\t{}\t", labels_type, final_locctr_value.unwrap_or(&String::new()))?;
+        }
+        Ok(())
+    }
+
+    fn generate_literal_table(&self, literals_table: &mut File, literals_type: &str, i: usize) -> Result<(), io::Error> {
+        if literals_type.starts_with('=') {
+            let final_locctr_value = self.get(&i);
+            writeln!(literals_table, "{}\t{}\t", literals_type, final_locctr_value.unwrap_or(&String::new()))?;
+        }
         Ok(())
     }
 }

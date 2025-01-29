@@ -8,7 +8,7 @@ pub struct Pass1 {
     pub labels: Vec<String>,
     pub instr: Vec<String>,
     pub ref_data: Vec<String>,
-    pub literals: Vec<String>,
+    pub literals: HashMap<usize, String>,
     pub locctr: HashMap<usize, String>,
     pub default_locctr: HashMap<usize, String>,
     pub defaultb_locctr: HashMap<usize, String>,
@@ -23,7 +23,7 @@ impl Pass1 {
             labels: Vec::new(),
             instr: Vec::new(),
             ref_data: Vec::new(),
-            literals: Vec::new(),
+            literals: HashMap::new(),
             locctr: HashMap::new(),
             default_locctr: HashMap::new(),
             defaultb_locctr: HashMap::new(),
@@ -72,12 +72,14 @@ impl Pass1 {
                 }
                 _ => {}
             }
+
         }
 
-        self.literals = self.ref_data.iter()
-            .filter(|r| r.starts_with('='))
-            .cloned()
-            .collect();
+        for i in 0..self.ref_data.len() {
+            if self.ref_data[i].starts_with("=") {
+                self.literals.insert(i, self.ref_data[i].clone());
+            }
+        }
 
         let mut intermediate_file = File::create("src/intermediate.txt")?;
         for (label, instr, ref_data) in izip!(&self.labels, &self.instr, &self.ref_data) {
@@ -91,8 +93,10 @@ impl Pass1 {
         self.initialize_location_counters();
 
         let mut pass1_file = File::create("src/out_pass1.txt").unwrap();
+        let mut symbol_table = File::create("src/symbTable.txt").unwrap();
+        let mut literals_table = File::create("src/litTable.txt").unwrap();
         for i in 0..self.lines.len() {
-            self.update_locctr(i, &mut pass1_file);
+            self.update_locctr(i, &mut pass1_file, &mut symbol_table, &mut literals_table);
         }
     }  
 
@@ -175,10 +179,11 @@ impl Pass1 {
         0
     }
     
-    fn update_locctr(&mut self, i: usize, pass1_file: &mut File) {
+    fn update_locctr(&mut self, i: usize, pass1_file: &mut File, symbol_table: &mut File, literals_table: &mut File) {
         let instr_type = &self.instr[i];
         let ref_type = &self.ref_data[i];
         let labels_type = &self.labels[i];
+
         let format1 = ["FIX", "FLOAT", "HIO", "SIO", "TIO", "NORM"];
         let format2=["ADDR", "CLEAR", "COMPR", "DIVR", "MULR", "RMO", "SHIFTR", "SHIFTL", "SUBR", "SVC", "TIXR"];
         /*let format3 = ["ADD", "ADDF", "AND", "COMP", "COMPF", "DIV", "J", "JEQ", "JGT", "JLT", "JSUB", "LDA", "LDB", "LDCH", "LDF", "LDL", "LDS", "LDT", "LDX", "LPS", "MUL", "MULF", "OR", "RD", "RSUB", "SSK", "STA", "STB", "STCH", "STF", "STI", "STL", "STS", "STSW", "STT", "STX", "SUB", "SUBF", "TD", "TIX", "WD"];*/
@@ -266,11 +271,18 @@ impl Pass1 {
                 }
                 else if cblks_boolean == true {
                     self.cblks_locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
+
                 } //else cblks
             }
             else {
                 self.locctr.write_to_file(pass1_file, i, instr_type, ref_type, labels_type).unwrap();
             }
+
+            //generate symbol table and literal table
+            self.locctr.generate_symbol_table(symbol_table, labels_type, i).unwrap();
+            if let Some(literals_type) = self.literals.get(&i) {
+                self.locctr.generate_literal_table(literals_table, literals_type, i).unwrap();
+            }            
             
         }
 
