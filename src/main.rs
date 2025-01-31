@@ -1,6 +1,7 @@
-mod pass1;
-use crate::pass1::Pass1;
 pub mod conversions;
+pub mod pass1;
+use crate::pass1::Pass1;
+pub mod pass2;
 
 fn main() {
     let file_path = "src/in.txt";
