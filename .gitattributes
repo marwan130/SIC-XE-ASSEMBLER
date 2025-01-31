@@ -1,2 +1,2 @@
-Makefile linguist-vendored
+Makefile linguist-ignore
 *.rs linguist-detectable
