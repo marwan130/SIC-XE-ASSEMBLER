@@ -1,3 +1,2 @@
 Makefile linguist-ignore
-
 *.rs linguist-detectable
