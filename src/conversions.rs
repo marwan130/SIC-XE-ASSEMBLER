@@ -30,6 +30,21 @@ pub fn remove_plus_prefix(instr: &str) -> String {
     }
 }
 
+pub fn get_register_value(reg: &str) -> u8 {
+    match reg.to_uppercase().as_str() {
+        "A" => 0,
+        "X" => 1,
+        "L" => 2,
+        "B" => 3,
+        "S" => 4,
+        "T" => 5,
+        "F" => 6,
+        "PC" => 8,
+        "SW" => 9,
+        _ => 0,
+    }
+}
+
 pub trait LocctrExtensions {
     fn turn_to_hexa(&mut self, i: usize, new_locctr: usize, instr_type: &str, ref_type: &str);
 

@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead};
+use crate::conversions::get_register_value;
 
-const FORMAT1: [&str; 6] = ["FIX", "FLOAT", "HIO", "SIO", "TIO", "NORM"];  // format 1 instructions
-const FORMAT2: [&str; 11] = ["ADDR", "CLEAR", "COMPR", "DIVR", "MULR", "RMO", "SHIFTR", "SHIFTL", "SUBR", "SVC", "TIXR"];  // format 2 instructions
-const FORMAT3: [&str; 41] = ["ADD", "ADDF", "AND", "COMP", "COMPF", "DIV", "J", "JEQ", "JGT", "JLT", "JSUB", "LDA", "LDB", "LDCH", "LDF", "LDL", "LDS", "LDT", "LDX", "LPS", "MUL", "MULF", "OR", "RD", "RSUB", "SSK", "STA", "STB", "STCH", "STF", "STI", "STL", "STS", "STSW", "STT", "STX", "SUB", "SUBF", "TD", "TIX", "WD"];  // format 3 instructions
-const FORMAT4: [&str; 5] = ["CADD", "CSUB", "CLOAD", "CSTORE", "CJUMP"];  // format 4 instructions
+const FORMAT1: [&str; 6] = ["FIX", "FLOAT", "HIO", "SIO", "TIO", "NORM"];  
+const FORMAT2: [&str; 11] = ["ADDR", "CLEAR", "COMPR", "DIVR", "MULR", "RMO", "SHIFTR", "SHIFTL", "SUBR", "SVC", "TIXR"];  
+const FORMAT3: [&str; 41] = ["ADD", "ADDF", "AND", "COMP", "COMPF", "DIV", "J", "JEQ", "JGT", "JLT", "JSUB", "LDA", "LDB", "LDCH", "LDF", "LDL", "LDS", "LDT", "LDX", "LPS", "MUL", "MULF", "OR", "RD", "RSUB", "SSK", "STA", "STB", "STCH", "STF", "STI", "STL", "STS", "STSW", "STT", "STX", "SUB", "SUBF", "TD", "TIX", "WD"];  
+const FORMAT4: [&str; 5] = ["CADD", "CSUB", "CLOAD", "CSTORE", "CJUMP"];  
 
 pub struct Pass2 {
     pub labels: Vec<String>,
@@ -209,5 +210,26 @@ impl Pass2 {
         }
 
         Ok(())
+    }
+
+    pub fn generate_format1_object_code(&self, instr: &str) -> Option<String> {
+        self.get_opcode(instr)
+    }
+
+    pub fn generate_format2_object_code(&self, instr: &str, operand: &str) -> Option<String> {
+        let opcode = self.get_opcode(instr)?;
+        
+        let parts: Vec<&str> = operand.split(',').collect();
+        let reg1 = if parts.len() >= 1 { parts[0].trim() } else { "" };
+        let reg2 = if parts.len() >= 2 { parts[1].trim() } else { "" };
+        
+        let reg1_val = get_register_value(reg1);
+        let reg2_val = get_register_value(reg2);
+        
+        let register_byte = (reg1_val << 4) | reg2_val;
+        
+        Some(format!("{:02X}{:02X}", 
+            usize::from_str_radix(&opcode, 16).ok()?,
+            register_byte))
     }
 }
