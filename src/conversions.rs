@@ -12,9 +12,21 @@ pub fn string_to_usize(s: &str) -> usize {
 
 pub fn usize_to_string(number: usize) -> String {
     if number == 0 {
-        String::new()  // return an empty string if the number is 0
+        String::new()
     } else {
-        format!("{:04X}", number)  // return the number as a hexadecimal string
+        format!("{:04X}", number)
+    }
+}
+
+pub fn hex_to_string(hex: &str) -> String {
+    format!("{:02X}", usize::from_str_radix(hex, 16).unwrap_or(0))  // convert hex string to formatted string
+}
+
+pub fn remove_plus_prefix(instr: &str) -> String {
+    if instr.starts_with('+') {
+        instr[1..].to_string()  // remove + prefix for format 4 instructions
+    } else {
+        instr.to_string()
     }
 }
 
@@ -54,16 +66,15 @@ impl LocctrExtensions for HashMap<usize, String> {
     }
 
     fn write_to_file(&self, pass1_file: &mut File, i: usize, instr_type: &str, ref_type: &str, labels: &str) -> Result<(), io::Error> {
-        // get the locctr value
         let final_locctr_value = self.get(&i);
-            writeln!(pass1_file, "{}\t{}\t{}\t{}", final_locctr_value.unwrap_or(&String::new()), labels, instr_type, ref_type)?;
+        writeln!(pass1_file, "{:<6} {:<10} {:<8} {}", final_locctr_value.unwrap_or(&String::new()), labels, instr_type, ref_type)?;
         Ok(())
     }
 
     fn generate_symbol_table(&self, symbol_table: &mut File, labels_type: &str, i: usize) -> Result<(), io::Error> {
         if labels_type != "&" && labels_type != "*" {
             let final_locctr_value = self.get(&i);
-            writeln!(symbol_table, "{}\t{}\t", labels_type, final_locctr_value.unwrap_or(&String::new()))?;
+            writeln!(symbol_table, "{:<10} {}", labels_type, final_locctr_value.unwrap_or(&String::new()))?;
         }
         Ok(())
     }
@@ -71,7 +82,7 @@ impl LocctrExtensions for HashMap<usize, String> {
     fn generate_literal_table(&self, literals_table: &mut File, literals_type: &str, i: usize) -> Result<(), io::Error> {
         if literals_type.starts_with('=') {
             let final_locctr_value = self.get(&i);
-            writeln!(literals_table, "{}\t{}\t", literals_type, final_locctr_value.unwrap_or(&String::new()))?;
+            writeln!(literals_table, "{:<10} {}", literals_type, final_locctr_value.unwrap_or(&String::new()))?;
         }
         Ok(())
     }

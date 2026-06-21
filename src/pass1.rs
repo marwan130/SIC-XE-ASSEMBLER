@@ -81,9 +81,9 @@ impl Pass1 {
             }
         }
 
-        let mut intermediate_file = File::create("src/intermediate.txt")?;
+        let mut intermediate_file = File::create("outputs/intermediate.txt")?;
         for (label, instr, ref_data) in izip!(&self.labels, &self.instr, &self.ref_data) {
-            writeln!(intermediate_file, "{}\t{}\t{}", label, instr, ref_data)?;
+            writeln!(intermediate_file, "{:<10} {:<8} {}", label, instr, ref_data)?;
         }
 
         Ok(())
@@ -92,9 +92,9 @@ impl Pass1 {
     pub fn pass1_generator(&mut self) {
         self.initialize_location_counters();
 
-        let mut pass1_file = File::create("src/out_pass1.txt").unwrap();
-        let mut symbol_table = File::create("src/symbTable.txt").unwrap();
-        let mut literals_table = File::create("src/litTable.txt").unwrap();
+        let mut pass1_file = File::create("outputs/out_pass1.txt").unwrap();
+        let mut symbol_table = File::create("outputs/symbTable.txt").unwrap();
+        let mut literals_table = File::create("outputs/litTable.txt").unwrap();
         for i in 0..self.lines.len() {
             self.update_locctr(i, &mut pass1_file, &mut symbol_table, &mut literals_table);
         }
