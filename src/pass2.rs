@@ -232,4 +232,99 @@ impl Pass2 {
             usize::from_str_radix(&opcode, 16).ok()?,
             register_byte))
     }
+
+    pub fn detect_addressing_mode(&self, operand: &str) -> (bool, bool, bool) {
+        let is_immediate = operand.starts_with('#');
+        let is_indirect = operand.starts_with('@');
+        let is_indexed = operand.to_uppercase().ends_with(",X");
+        
+        (is_immediate, is_indirect, is_indexed)
+    }
+
+    pub fn calculate_displacement(&self, operand: &str, locctr: usize, base_addr: Option<usize>) -> Option<(i32, bool, bool)> {
+        let operand_clean = operand.trim_start_matches('#').trim_start_matches('@').trim_end_matches(",X").trim();
+        
+        if let Some(target_addr) = self.symbol_table.get(operand_clean) {
+            let target = usize::from_str_radix(target_addr, 16).ok()?;
+            let pc_next = locctr + 3;
+            
+            let pc_disp = target as i32 - pc_next as i32;
+            let use_pc = pc_disp >= -2048 && pc_disp <= 2047;
+            
+            if let Some(base) = base_addr {
+                let base_disp = target as i32 - base as i32;
+                let use_base = base_disp >= 0 && base_disp <= 4095;
+                Some((pc_disp, use_pc, use_base))
+            } else {
+                Some((pc_disp, use_pc, false))
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn generate_format3_object_code(&self, instr: &str, operand: &str, locctr: usize, base_addr: Option<usize>) -> Option<String> {
+        let opcode = self.get_opcode(instr)?;
+        let (is_immediate, is_indirect, is_indexed) = self.detect_addressing_mode(operand);
+        
+        let (disp, use_pc, use_base) = self.calculate_displacement(operand, locctr, base_addr)?;
+        
+        let n = if is_immediate { 0 } else { 1 };
+        let i = if is_immediate { 1 } else { 0 };
+        let x = if is_indexed { 1 } else { 0 };
+        let b = if use_base { 1 } else { 0 };
+        let p = if use_pc { 1 } else { 0 };
+        let e = 0;
+        
+        let opcode_num = usize::from_str_radix(&opcode, 16).ok()?;
+        let opcode_bits = opcode_num >> 2;
+        
+        let flags = ((n << 5) | (i << 4) | (x << 3) | (b << 2) | (p << 1) | e) as u8;
+        
+        let disp_bits = if use_base {
+            disp as u16 & 0xFFF
+        } else if use_pc {
+            (disp + 2048) as u16 & 0xFFF
+        } else {
+            disp as u16 & 0xFFF
+        };
+        
+        let first_byte = (opcode_bits << 4) | ((flags >> 2) as usize);
+        let second_byte = (((flags & 0x3) << 4) as usize) | ((disp_bits >> 8) & 0xF) as usize;
+        let third_byte = (disp_bits & 0xFF) as usize;
+        
+        Some(format!("{:02X}{:02X}{:02X}", first_byte, second_byte, third_byte))
+    }
+
+    pub fn generate_format4_object_code(&self, instr: &str, operand: &str) -> Option<String> {
+        let opcode = self.get_opcode(instr)?;
+        let (is_immediate, is_indirect, is_indexed) = self.detect_addressing_mode(operand);
+        
+        let operand_clean = operand.trim_start_matches('#').trim_start_matches('@').trim_end_matches(",X").trim();
+        
+        let target_addr = if let Some(addr) = self.symbol_table.get(operand_clean) {
+            usize::from_str_radix(addr, 16).ok()?
+        } else {
+            usize::from_str_radix(operand_clean, 16).ok()?
+        };
+        
+        let n = if is_immediate { 0 } else { 1 };
+        let i = if is_immediate { 1 } else { 0 };
+        let x = if is_indexed { 1 } else { 0 };
+        let b = 0;
+        let p = 0;
+        let e = 1;
+        
+        let opcode_num = usize::from_str_radix(&opcode, 16).ok()?;
+        let opcode_bits = opcode_num >> 2;
+        
+        let flags = ((n << 5) | (i << 4) | (x << 3) | (b << 2) | (p << 1) | e) as u8;
+        
+        let first_byte = (opcode_bits << 4) | ((flags >> 2) as usize);
+        let second_byte = (((flags & 0x3) << 4) as usize) | ((target_addr >> 16) & 0xF) as usize;
+        let third_byte = (target_addr >> 8) & 0xFF;
+        let fourth_byte = target_addr & 0xFF;
+        
+        Some(format!("{:02X}{:02X}{:02X}{:02X}", first_byte, second_byte, third_byte, fourth_byte))
+    }
 }

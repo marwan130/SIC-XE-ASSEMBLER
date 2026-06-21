@@ -45,6 +45,18 @@ pub fn get_register_value(reg: &str) -> u8 {
     }
 }
 
+pub fn set_flag(value: u8, flag: u8, set: bool) -> u8 {
+    if set {
+        value | flag
+    } else {
+        value & !flag
+    }
+}
+
+pub fn get_flag(value: u8, flag: u8) -> bool {
+    (value & flag) != 0
+}
+
 pub trait LocctrExtensions {
     fn turn_to_hexa(&mut self, i: usize, new_locctr: usize, instr_type: &str, ref_type: &str);
 
