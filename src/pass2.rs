@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead};
-use crate::conversions::get_register_value;
+use crate::conversions::{get_register_value, string_to_hex, hex_string_to_hex, integer_to_hex};
 
 const FORMAT1: [&str; 6] = ["FIX", "FLOAT", "HIO", "SIO", "TIO", "NORM"];  
 const FORMAT2: [&str; 11] = ["ADDR", "CLEAR", "COMPR", "DIVR", "MULR", "RMO", "SHIFTR", "SHIFTL", "SUBR", "SVC", "TIXR"];  
@@ -16,6 +16,8 @@ pub struct Pass2 {
     pub literal_table: HashMap<String, String>,
     pub object_code: HashMap<usize, String>,
     pub opcode_table: HashMap<String, String>,
+    pub base_addr: Option<usize>,
+    pub current_block: String,
 }
 
 impl Pass2 {
@@ -28,6 +30,8 @@ impl Pass2 {
             literal_table: HashMap::new(),
             object_code: HashMap::new(),
             opcode_table: Self::create_opcode_table(),
+            base_addr: None,
+            current_block: "DEFAULT".to_string(),
         }
     }
 
@@ -326,5 +330,82 @@ impl Pass2 {
         let fourth_byte = target_addr & 0xFF;
         
         Some(format!("{:02X}{:02X}{:02X}{:02X}", first_byte, second_byte, third_byte, fourth_byte))
+    }
+
+    pub fn handle_literal(&self, literal: &str) -> Option<String> {
+        if let Some(addr) = self.literal_table.get(literal) {
+            return Some(addr.clone());
+        }
+        
+        if literal.starts_with("=C'") {
+            let content = literal.trim_start_matches("=C'").trim_end_matches('\'');
+            Some(string_to_hex(content))
+        } else if literal.starts_with("=X'") {
+            Some(hex_string_to_hex(literal))
+        } else if literal.starts_with('=') {
+            let value = literal.trim_start_matches('=').parse::<usize>().ok()?;
+            Some(format!("{:06X}", value))
+        } else {
+            None
+        }
+    }
+
+    pub fn handle_directive(&mut self, instr: &str, operand: &str, locctr: usize) -> Option<String> {
+        match instr.to_uppercase().as_str() {
+            "WORD" => {
+                let value = if operand.starts_with('#') {
+                    operand.trim_start_matches('#').parse::<usize>().ok()?
+                } else if let Some(addr) = self.symbol_table.get(operand) {
+                    usize::from_str_radix(addr, 16).ok()?
+                } else {
+                    operand.parse::<usize>().ok()?
+                };
+                Some(integer_to_hex(value, 3))
+            }
+            "BYTE" => {
+                if operand.starts_with("C'") {
+                    let content = operand.trim_start_matches("C'").trim_end_matches('\'');
+                    Some(string_to_hex(content))
+                } else if operand.starts_with("X'") {
+                    Some(hex_string_to_hex(operand))
+                } else {
+                    None
+                }
+            }
+            "RESW" | "RESB" => {
+                Some(String::new())
+            }
+            "BASE" => {
+                if let Some(addr) = self.symbol_table.get(operand) {
+                    self.base_addr = Some(usize::from_str_radix(addr, 16).ok()?);
+                }
+                Some(String::new())
+            }
+            "LTORG" | "EQU" | "START" | "END" => {
+                Some(String::new())
+            }
+            _ => None,
+        }
+    }
+
+    pub fn handle_memory_block(&mut self, instr: &str) {
+        match instr.to_uppercase().as_str() {
+            "USE" => {
+                if let Some(operand) = self.operands.last() {
+                    self.current_block = operand.clone();
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn adjust_address_for_block(&self, addr: usize) -> usize {
+        match self.current_block.as_str() {
+            "DEFAULT" => addr,
+            "DEFAULTB" => addr + 4096,
+            "CDATA" => addr + 8192,
+            "CBLKS" => addr + 12288,
+            _ => addr,
+        }
     }
 }
