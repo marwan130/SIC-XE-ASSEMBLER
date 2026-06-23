@@ -101,7 +101,6 @@ impl Pass1 {
         block_locctrs.insert("CBLKS".to_string(), 0);
 
         let mut current_block = "DEFAULTB".to_string();
-        let mut start_addr = 0;
 
         let mut symbols: HashMap<String, (usize, String)> = HashMap::new();
         let mut literals: HashMap<String, (usize, String)> = HashMap::new();
@@ -113,7 +112,6 @@ impl Pass1 {
             let labels_type = self.labels[i].clone();
 
             if instr_type == "START" {
-                start_addr = usize::from_str_radix(&ref_type, 16).unwrap_or(0);
                 writeln!(intermediate_file, "{:<10} {:<9} {}", labels_type, instr_type, ref_type).unwrap();
                 continue;
             }

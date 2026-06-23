@@ -319,7 +319,7 @@ impl Pass2 {
 
     pub fn generate_format3_object_code(&self, instr: &str, operand: &str, locctr: usize, base_addr: Option<usize>) -> Option<String> {
         let opcode = self.get_opcode(instr)?;
-        let (is_immediate, is_indirect, is_indexed) = self.detect_addressing_mode(operand);
+        let (is_immediate, _is_indirect, is_indexed) = self.detect_addressing_mode(operand);
         
         let (disp, use_pc, use_base) = self.calculate_displacement(operand, locctr, base_addr)?;
         
@@ -352,7 +352,7 @@ impl Pass2 {
 
     pub fn generate_format4_object_code(&self, instr: &str, operand: &str) -> Option<String> {
         let opcode = self.get_opcode(instr)?;
-        let (is_immediate, is_indirect, is_indexed) = self.detect_addressing_mode(operand);
+        let (is_immediate, _is_indirect, is_indexed) = self.detect_addressing_mode(operand);
         
         let operand_clean = operand.trim_start_matches('#').trim_start_matches('@').trim_end_matches(",X").trim();
         
@@ -435,7 +435,7 @@ impl Pass2 {
         }
     }
 
-    pub fn handle_directive(&mut self, instr: &str, operand: &str, locctr: usize) -> Option<String> {
+    pub fn handle_directive(&mut self, instr: &str, operand: &str, _locctr: usize) -> Option<String> {
         match instr.to_uppercase().as_str() {
             "WORD" => {
                 let value = if operand.starts_with('#') {
@@ -479,16 +479,6 @@ impl Pass2 {
                 self.current_block = operand.to_string();
             }
             _ => {}
-        }
-    }
-
-    pub fn adjust_address_for_block(&self, addr: usize) -> usize {
-        match self.current_block.as_str() {
-            "DEFAULT" => addr,
-            "DEFAULTB" => addr + 4096,
-            "CDATA" => addr + 8192,
-            "CBLKS" => addr + 12288,
-            _ => addr,
         }
     }
 
