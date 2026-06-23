@@ -12,12 +12,15 @@ pub struct Pass2 {
     pub labels: Vec<String>,
     pub instr: Vec<String>,
     pub operands: Vec<String>,
+    pub locctrs: Vec<usize>,
+    pub blocks: Vec<String>,
     pub symbol_table: HashMap<String, String>,
     pub literal_table: HashMap<String, String>,
     pub object_code: HashMap<usize, String>,
     pub opcode_table: HashMap<String, String>,
     pub base_addr: Option<usize>,
     pub current_block: String,
+    pub block_bases: HashMap<String, usize>,
     pub program_name: String,
     pub start_addr: usize,
     pub program_length: usize,
@@ -29,12 +32,15 @@ impl Pass2 {
             labels: Vec::new(),
             instr: Vec::new(),
             operands: Vec::new(),
+            locctrs: Vec::new(),
+            blocks: Vec::new(),
             symbol_table: HashMap::new(),
             literal_table: HashMap::new(),
             object_code: HashMap::new(),
             opcode_table: Self::create_opcode_table(),
             base_addr: None,
-            current_block: "DEFAULT".to_string(),
+            current_block: "DEFAULTB".to_string(),
+            block_bases: HashMap::new(),
             program_name: String::new(),
             start_addr: 0,
             program_length: 0,
@@ -146,6 +152,11 @@ impl Pass2 {
         3
     }
 
+    pub fn is_format4f(&self, instr: &str) -> bool {
+        let instr_upper = instr.to_uppercase();
+        FORMAT4.contains(&instr_upper.as_str())
+    }
+
     pub fn get_opcode(&self, instr: &str) -> Option<String> {  
         let instr_upper = instr.to_uppercase();
         
@@ -168,18 +179,51 @@ impl Pass2 {
                 .map(|s| s.to_string())
                 .collect();
 
-            if parts.len() >= 3 {
+            if parts.is_empty() {
+                continue;
+            }
+
+            if parts.len() >= 2 && parts[1] == "START" {
                 self.labels.push(parts[0].clone());
+                self.instr.push("START".to_string());
+                self.operands.push(if parts.len() > 2 { parts[2].clone() } else { "0".to_string() });
+                self.locctrs.push(0);
+                self.blocks.push("DEFAULT".to_string());
+            } else if parts.len() >= 4 {
+                let locctr = usize::from_str_radix(&parts[0], 16).unwrap_or(0);
+                let label = if parts[1] == "&" { "&".to_string() } else { parts[1].clone() };
+                let instr = parts[2].clone();
+                let operand = if parts.len() > 3 { parts[3].clone() } else { "&".to_string() };
+                
+                self.labels.push(label);
+                self.instr.push(instr.clone());
+                self.operands.push(operand.clone());
+                self.locctrs.push(locctr);
+                
+                if instr == "USE" {
+                    self.blocks.push(operand);
+                } else {
+                    self.blocks.push(self.current_block.clone());
+                }
+            } else if parts.len() == 3 {
+                let locctr = usize::from_str_radix(&parts[0], 16).unwrap_or(0);
+                self.labels.push("&".to_string());
                 self.instr.push(parts[1].clone());
                 self.operands.push(parts[2].clone());
+                self.locctrs.push(locctr);
+                self.blocks.push(self.current_block.clone());
             } else if parts.len() == 2 {
                 self.labels.push("&".to_string());
                 self.instr.push(parts[0].clone());
                 self.operands.push(parts[1].clone());
+                self.locctrs.push(0);
+                self.blocks.push(self.current_block.clone());
             } else if parts.len() == 1 {
                 self.labels.push("&".to_string());
                 self.instr.push(parts[0].clone());
                 self.operands.push("&".to_string());
+                self.locctrs.push(0);
+                self.blocks.push(self.current_block.clone());
             }
         }
 
@@ -338,6 +382,41 @@ impl Pass2 {
         Some(format!("{:02X}{:02X}{:02X}{:02X}", first_byte, second_byte, third_byte, fourth_byte))
     }
 
+    pub fn generate_format4f_object_code(&self, instr: &str, operand: &str) -> Option<String> {
+        let opcode = self.get_opcode(instr)?;
+        
+        let parts: Vec<&str> = operand.split(',').collect();
+        
+        let register = if parts.len() >= 1 { parts[0].trim() } else { "" };
+        let memory = if parts.len() >= 2 { parts[1].trim() } else { "" };
+        let condition = if parts.len() >= 3 { parts[2].trim() } else { "" };
+        
+        let reg_val = get_register_value(register);
+        
+        let condition_flag = match condition.to_uppercase().as_str() {
+            "Z" => 0b00,
+            "N" => 0b01,
+            "C" => 0b10,
+            "V" => 0b11,
+            _ => 0b00,
+        };
+        
+        let target_addr = if let Some(addr) = self.symbol_table.get(memory) {
+            usize::from_str_radix(addr, 16).ok()?
+        } else {
+            usize::from_str_radix(memory, 16).ok()?
+        };
+        
+        let opcode_num = usize::from_str_radix(&opcode, 16).ok()?;
+        
+        let first_byte = (((opcode_num & 0xFC) << 2) as u8) | ((reg_val & 0xF) >> 2) as u8;
+        let second_byte = ((reg_val & 0x3) << 6) | ((condition_flag & 0x3) << 4) | ((target_addr >> 16) & 0xF) as u8;
+        let third_byte = ((target_addr >> 8) & 0xFF) as u8;
+        let fourth_byte = (target_addr & 0xFF) as u8;
+        
+        Some(format!("{:02X}{:02X}{:02X}{:02X}", first_byte, second_byte, third_byte, fourth_byte))
+    }
+
     pub fn handle_literal(&self, literal: &str) -> Option<String> {
         if let Some(addr) = self.literal_table.get(literal) {
             return Some(addr.clone());
@@ -394,12 +473,10 @@ impl Pass2 {
         }
     }
 
-    pub fn handle_memory_block(&mut self, instr: &str) {
+    pub fn handle_memory_block(&mut self, instr: &str, operand: &str) {
         match instr.to_uppercase().as_str() {
             "USE" => {
-                if let Some(operand) = self.operands.last() {
-                    self.current_block = operand.clone();
-                }
+                self.current_block = operand.to_string();
             }
             _ => {}
         }
@@ -483,18 +560,18 @@ impl Pass2 {
         self.read_symbol_table(symbol_path)?;
         self.read_literal_table(literal_path)?;
 
+        self.calculate_block_bases();
+
         for i in 0..self.instr.len() {
             let instr = self.instr[i].clone();
             let operand = if i < self.operands.len() { self.operands[i].clone() } else { "&".to_string() };
             let label = if i < self.labels.len() { self.labels[i].clone() } else { "&".to_string() };
 
-            self.handle_memory_block(&instr);
+            self.handle_memory_block(&instr, &operand);
 
             if instr.to_uppercase() == "START" {
                 self.program_name = label.clone();
-                if let Some(addr) = self.symbol_table.get(&label) {
-                    self.start_addr = usize::from_str_radix(addr, 16).unwrap_or(0);
-                }
+                self.start_addr = usize::from_str_radix(&operand, 16).unwrap_or(0);
                 continue;
             }
 
@@ -505,37 +582,50 @@ impl Pass2 {
                 continue;
             }
 
-            let locctr = if i > 0 && !self.labels[i-1].is_empty() && self.labels[i-1] != "&" {
-                if let Some(addr) = self.symbol_table.get(&self.labels[i-1]) {
-                    usize::from_str_radix(addr, 16).unwrap_or(0)
-                } else {
-                    0
-                }
+            if instr.to_uppercase() == "USE" {
+                continue;
+            }
+
+            let locctr = if i < self.locctrs.len() {
+                self.locctrs[i]
             } else {
                 0
             };
 
+            let block = if i < self.blocks.len() {
+                self.blocks[i].clone()
+            } else {
+                "DEFAULT".to_string()
+            };
+
+            let block_base = *self.block_bases.get(&block).unwrap_or(&0);
+            let absolute_locctr = locctr + block_base;
+
             let format = self.detect_instruction_format(&instr);
 
-            if let Some(obj_code) = self.handle_directive(&instr, &operand, locctr) {
+            if let Some(obj_code) = self.handle_directive(&instr, &operand, absolute_locctr) {
                 if !obj_code.is_empty() {
-                    self.object_code.insert(locctr, obj_code);
+                    self.object_code.insert(absolute_locctr, obj_code);
                 }
             } else if operand.starts_with('=') {
                 if let Some(obj_code) = self.handle_literal(&operand) {
-                    self.object_code.insert(locctr, obj_code);
+                    self.object_code.insert(absolute_locctr, obj_code);
                 }
             } else {
-                let obj_code = match format {
-                    1 => self.generate_format1_object_code(&instr),
-                    2 => self.generate_format2_object_code(&instr, &operand),
-                    3 => self.generate_format3_object_code(&instr, &operand, locctr, self.base_addr),
-                    4 => self.generate_format4_object_code(&instr, &operand),
-                    _ => None,
+                let obj_code = if self.is_format4f(&instr) {
+                    self.generate_format4f_object_code(&instr, &operand)
+                } else {
+                    match format {
+                        1 => self.generate_format1_object_code(&instr),
+                        2 => self.generate_format2_object_code(&instr, &operand),
+                        3 => self.generate_format3_object_code(&instr, &operand, absolute_locctr, self.base_addr),
+                        4 => self.generate_format4_object_code(&instr, &operand),
+                        _ => None,
+                    }
                 };
 
                 if let Some(code) = obj_code {
-                    self.object_code.insert(locctr, code);
+                    self.object_code.insert(absolute_locctr, code);
                 }
             }
         }
@@ -547,5 +637,48 @@ impl Pass2 {
         self.write_object_program(output_path)?;
 
         Ok(())
+    }
+
+    fn calculate_block_bases(&mut self) {
+        let mut block_sizes: HashMap<String, usize> = HashMap::new();
+        block_sizes.insert("DEFAULT".to_string(), 0);
+        block_sizes.insert("DEFAULTB".to_string(), 0);
+        block_sizes.insert("CDATA".to_string(), 0);
+        block_sizes.insert("CBLKS".to_string(), 0);
+
+        for i in 0..self.locctrs.len() {
+            if i < self.blocks.len() {
+                let block = self.blocks[i].clone();
+                let locctr = self.locctrs[i];
+                let instr = self.instr[i].clone();
+                let operand = if i < self.operands.len() { self.operands[i].clone() } else { "&".to_string() };
+                
+                let increment = match instr.as_str() {
+                    "WORD" => 3,
+                    "RESW" => operand.parse::<usize>().unwrap_or(0) * 3,
+                    "RESB" => operand.parse::<usize>().unwrap_or(0),
+                    "BYTE" => {
+                        if operand.starts_with("X'") {
+                            (operand.len() - 3) / 2
+                        } else if operand.starts_with("C'") {
+                            operand.len() - 3
+                        } else {
+                            1
+                        }
+                    }
+                    _ => 3,
+                };
+                
+                let final_locctr = locctr + increment;
+                *block_sizes.get_mut(&block).unwrap_or(&mut 0) = (*block_sizes.get(&block).unwrap_or(&0)).max(final_locctr);
+            }
+        }
+
+        let mut base = 0;
+        let blocks = ["DEFAULTB", "CDATA", "CBLKS", "DEFAULT"];
+        for block in blocks {
+            self.block_bases.insert(block.to_string(), base);
+            base += *block_sizes.get(block).unwrap_or(&0);
+        }
     }
 }

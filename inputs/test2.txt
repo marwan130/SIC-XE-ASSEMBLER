@@ -1,0 +1,7 @@
+PROG2    START    1000
+         USE      DEFAULTB
+         LDA      =C'A'
+         STA      CHAR
+         USE      CDATA
+CHAR     BYTE     X'41'
+         END      1000

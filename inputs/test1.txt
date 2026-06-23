@@ -1,0 +1,8 @@
+COPY     START    0
+         USE      DEFAULTB
+         LDA      #5
+         ADD      #10
+         STA      RESULT
+         USE      CDATA
+RESULT   WORD     0
+         END      0

@@ -1,0 +1,8 @@
+TEST3    START    2000
+         USE      DEFAULTB
+         LDT      #256
+         USE      CBLKS
+BUFFER   RESB     100
+         USE      CDATA
+DATA     WORD     12345
+         END      2000
