@@ -11,7 +11,5 @@ fn main() {
     pass1.pass1_generator();
 
     let mut pass2 = Pass2::new();
-    let _ = pass2.read_intermediate_file("outputs/intermediate.txt");
-    let _ = pass2.read_symbol_table("outputs/symbTable.txt");
-    let _ = pass2.read_literal_table("outputs/litTable.txt");
+    let _ = pass2.pass2_generator("outputs/intermediate.txt", "outputs/symbTable.txt", "outputs/litTable.txt", "outputs/object_program.txt");
 }

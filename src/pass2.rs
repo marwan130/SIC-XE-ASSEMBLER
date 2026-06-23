@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Write};
 use crate::conversions::{get_register_value, string_to_hex, hex_string_to_hex, integer_to_hex};
 
 const FORMAT1: [&str; 6] = ["FIX", "FLOAT", "HIO", "SIO", "TIO", "NORM"];  
@@ -18,6 +18,9 @@ pub struct Pass2 {
     pub opcode_table: HashMap<String, String>,
     pub base_addr: Option<usize>,
     pub current_block: String,
+    pub program_name: String,
+    pub start_addr: usize,
+    pub program_length: usize,
 }
 
 impl Pass2 {
@@ -32,6 +35,9 @@ impl Pass2 {
             opcode_table: Self::create_opcode_table(),
             base_addr: None,
             current_block: "DEFAULT".to_string(),
+            program_name: String::new(),
+            start_addr: 0,
+            program_length: 0,
         }
     }
 
@@ -407,5 +413,139 @@ impl Pass2 {
             "CBLKS" => addr + 12288,
             _ => addr,
         }
+    }
+
+    pub fn generate_header_record(&self) -> String {
+        let name_padded = format!("{:<6}", &self.program_name[..self.program_name.len().min(6)]);
+        let start_hex = format!("{:06X}", self.start_addr);
+        let length_hex = format!("{:06X}", self.program_length);
+        format!("H{}{}{}", name_padded, start_hex, length_hex)
+    }
+
+    pub fn generate_text_records(&self) -> Vec<String> {
+        let mut records = Vec::new();
+        let mut sorted_addrs: Vec<_> = self.object_code.keys().cloned().collect();
+        sorted_addrs.sort();
+
+        let mut i = 0;
+        while i < sorted_addrs.len() {
+            let start_addr = sorted_addrs[i];
+            let mut current_addr = start_addr;
+            let mut obj_code = String::new();
+            let mut bytes_count = 0;
+
+            while i < sorted_addrs.len() && bytes_count < 30 {
+                let addr = sorted_addrs[i];
+                if addr == current_addr {
+                    if let Some(code) = self.object_code.get(&addr) {
+                        obj_code.push_str(code);
+                        bytes_count += code.len() / 2;
+                        current_addr += code.len() / 2;
+                    }
+                    i += 1;
+                } else if addr < current_addr {
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+
+            if !obj_code.is_empty() {
+                let start_hex = format!("{:06X}", start_addr);
+                let length_hex = format!("{:02X}", bytes_count);
+                records.push(format!("T{}{}{}", start_hex, length_hex, obj_code));
+            }
+        }
+
+        records
+    }
+
+    pub fn generate_end_record(&self) -> String {
+        format!("E{:06X}", self.start_addr)
+    }
+
+    pub fn write_object_program(&self, output_path: &str) -> io::Result<()> {
+        let mut file = File::create(output_path)?;
+
+        writeln!(file, "{}", self.generate_header_record())?;
+
+        for record in self.generate_text_records() {
+            writeln!(file, "{}", record)?;
+        }
+
+        writeln!(file, "{}", self.generate_end_record())?;
+
+        Ok(())
+    }
+
+    pub fn pass2_generator(&mut self, intermediate_path: &str, symbol_path: &str, literal_path: &str, output_path: &str) -> io::Result<()> {
+        self.read_intermediate_file(intermediate_path)?;
+        self.read_symbol_table(symbol_path)?;
+        self.read_literal_table(literal_path)?;
+
+        for i in 0..self.instr.len() {
+            let instr = self.instr[i].clone();
+            let operand = if i < self.operands.len() { self.operands[i].clone() } else { "&".to_string() };
+            let label = if i < self.labels.len() { self.labels[i].clone() } else { "&".to_string() };
+
+            self.handle_memory_block(&instr);
+
+            if instr.to_uppercase() == "START" {
+                self.program_name = label.clone();
+                if let Some(addr) = self.symbol_table.get(&label) {
+                    self.start_addr = usize::from_str_radix(addr, 16).unwrap_or(0);
+                }
+                continue;
+            }
+
+            if instr.to_uppercase() == "END" {
+                if let Some(addr) = self.symbol_table.get(&operand) {
+                    self.start_addr = usize::from_str_radix(addr, 16).unwrap_or(self.start_addr);
+                }
+                continue;
+            }
+
+            let locctr = if i > 0 && !self.labels[i-1].is_empty() && self.labels[i-1] != "&" {
+                if let Some(addr) = self.symbol_table.get(&self.labels[i-1]) {
+                    usize::from_str_radix(addr, 16).unwrap_or(0)
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+
+            let format = self.detect_instruction_format(&instr);
+
+            if let Some(obj_code) = self.handle_directive(&instr, &operand, locctr) {
+                if !obj_code.is_empty() {
+                    self.object_code.insert(locctr, obj_code);
+                }
+            } else if operand.starts_with('=') {
+                if let Some(obj_code) = self.handle_literal(&operand) {
+                    self.object_code.insert(locctr, obj_code);
+                }
+            } else {
+                let obj_code = match format {
+                    1 => self.generate_format1_object_code(&instr),
+                    2 => self.generate_format2_object_code(&instr, &operand),
+                    3 => self.generate_format3_object_code(&instr, &operand, locctr, self.base_addr),
+                    4 => self.generate_format4_object_code(&instr, &operand),
+                    _ => None,
+                };
+
+                if let Some(code) = obj_code {
+                    self.object_code.insert(locctr, code);
+                }
+            }
+        }
+
+        if let Some(&max_addr) = self.object_code.keys().max() {
+            self.program_length = max_addr - self.start_addr + 1;
+        }
+
+        self.write_object_program(output_path)?;
+
+        Ok(())
     }
 }
