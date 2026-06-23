@@ -64,10 +64,14 @@ impl Pass1 {
         Ok(())
     }
 
-    pub fn pass1_generator(&mut self) {
-        let mut intermediate_file = File::create("outputs/intermediate.txt").unwrap();
-        let mut symbol_table = File::create("outputs/symbTable.txt").unwrap();
-        let mut literals_table = File::create("outputs/litTable.txt").unwrap();
+    pub fn pass1_generator(&mut self, output_dir: &str) {
+        let intermediate_path = format!("{}/intermediate.txt", output_dir);
+        let symbol_path = format!("{}/symbTable.txt", output_dir);
+        let literal_path = format!("{}/litTable.txt", output_dir);
+        
+        let mut intermediate_file = File::create(&intermediate_path).unwrap();
+        let mut symbol_table = File::create(&symbol_path).unwrap();
+        let mut literals_table = File::create(&literal_path).unwrap();
 
         let mut block_locctrs: HashMap<String, usize> = HashMap::new();
         block_locctrs.insert("DEFAULT".to_string(), 0);
