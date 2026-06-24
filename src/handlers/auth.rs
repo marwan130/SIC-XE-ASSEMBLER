@@ -13,6 +13,16 @@ use crate::models::{User, CreateUserRequest, LoginRequest, AuthResponse};
 use crate::auth::encode_token;
 use crate::error::AppError;
 
+#[utoipa::path(
+    post,
+    path = "/auth/register",
+    request_body = CreateUserRequest,
+    responses(
+        (status = 201, description = "User registered successfully", body = AuthResponse),
+        (status = 400, description = "Bad request - user already exists or invalid data")
+    ),
+    tag = "Authentication"
+)]
 pub async fn register(
     pool: web::Data<PgPool>,
     req: web::Json<CreateUserRequest>,
@@ -72,6 +82,16 @@ pub async fn register(
     Ok(HttpResponse::Created().json(response))
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/login",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "User logged in successfully", body = AuthResponse),
+        (status = 401, description = "Invalid credentials")
+    ),
+    tag = "Authentication"
+)]
 pub async fn login(
     pool: web::Data<PgPool>,
     req: web::Json<LoginRequest>,
@@ -104,6 +124,18 @@ pub async fn login(
     Ok(HttpResponse::Ok().json(response))
 }
 
+#[utoipa::path(
+    get,
+    path = "/auth/me",
+    responses(
+        (status = 200, description = "Current user profile", body = User),
+        (status = 401, description = "Unauthorized - invalid or missing token")
+    ),
+    security(
+        ("bearer_auth" = [])
+    ),
+    tag = "Authentication"
+)]
 pub async fn me(
     user: crate::auth::AuthenticatedUser,
     pool: web::Data<PgPool>,
@@ -146,6 +178,14 @@ fn google_client() -> Result<BasicClient, AppError> {
     .set_redirect_uri(redirect_url))
 }
 
+#[utoipa::path(
+    get,
+    path = "/auth/google",
+    responses(
+        (status = 200, description = "Returns Google OAuth authorization URL", body = serde_json::Value)
+    ),
+    tag = "Authentication"
+)]
 pub async fn google_auth(_req: HttpRequest) -> Result<HttpResponse, AppError> {
     let client = google_client()?;
     
@@ -166,6 +206,18 @@ struct GoogleUserInfo {
     picture: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/auth/google/callback",
+    params(
+        ("code" = String, Query, description = "OAuth authorization code"),
+        ("state" = String, Query, description = "OAuth state parameter")
+    ),
+    responses(
+        (status = 200, description = "OAuth callback successful", body = AuthResponse)
+    ),
+    tag = "Authentication"
+)]
 pub async fn google_callback(
     pool: web::Data<PgPool>,
     query: web::Query<OAuthCallbackQuery>,
@@ -264,6 +316,14 @@ fn github_client() -> Result<BasicClient, AppError> {
     .set_redirect_uri(redirect_url))
 }
 
+#[utoipa::path(
+    get,
+    path = "/auth/github",
+    responses(
+        (status = 200, description = "Returns GitHub OAuth authorization URL", body = serde_json::Value)
+    ),
+    tag = "Authentication"
+)]
 pub async fn github_auth(_req: HttpRequest) -> Result<HttpResponse, AppError> {
     let client = github_client()?;
     
@@ -284,6 +344,18 @@ struct GitHubUserInfo {
     avatar_url: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/auth/github/callback",
+    params(
+        ("code" = String, Query, description = "OAuth authorization code"),
+        ("state" = String, Query, description = "OAuth state parameter")
+    ),
+    responses(
+        (status = 200, description = "OAuth callback successful", body = AuthResponse)
+    ),
+    tag = "Authentication"
+)]
 pub async fn github_callback(
     pool: web::Data<PgPool>,
     query: web::Query<OAuthCallbackQuery>,

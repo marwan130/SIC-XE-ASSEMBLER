@@ -3,7 +3,10 @@ use actix_cors::Cors;
 use sqlx::postgres::PgPoolOptions;
 use tracing::info;
 use tracing_subscriber;
-use systems_project::handlers::{register, login, me, google_auth, google_callback, github_auth, github_callback};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+use systems_project::handlers::{register, login, me, google_auth, google_callback, github_auth, github_callback, assemble, get_history, get_job, delete_job};
+use systems_project::ApiDoc;
 
 async fn health() -> impl Responder {
     info!("Health check requested");
@@ -46,6 +49,8 @@ async fn main() -> std::io::Result<()> {
     info!("Starting server on {}", bind_address);
     info!("CORS allowed origin: {}", frontend_url);
     
+    let openapi = ApiDoc::openapi();
+    
     HttpServer::new(move || {
         let cors = Cors::permissive()
             .allowed_origin(&frontend_url)
@@ -61,6 +66,10 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(pool))
             .wrap(cors)
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", openapi.clone())
+            )
             .route("/health", web::get().to(health))
             .route("/auth/register", web::post().to(register))
             .route("/auth/login", web::post().to(login))
@@ -69,6 +78,10 @@ async fn main() -> std::io::Result<()> {
             .route("/auth/google/callback", web::get().to(google_callback))
             .route("/auth/github", web::get().to(github_auth))
             .route("/auth/github/callback", web::get().to(github_callback))
+            .route("/assemble", web::post().to(assemble))
+            .route("/history", web::get().to(get_history))
+            .route("/history/{id}", web::get().to(get_job))
+            .route("/history/{id}", web::delete().to(delete_job))
     })
     .bind(&bind_address)?
     .run()

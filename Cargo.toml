@@ -32,3 +32,5 @@ chrono = { version = "0.4", features = ["serde"] }
 dotenv = "0.15"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+utoipa = { version = "5.5", features = ["actix_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "9.0", features = ["actix-web"] }
