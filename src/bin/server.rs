@@ -3,6 +3,7 @@ use actix_cors::Cors;
 use sqlx::postgres::PgPoolOptions;
 use tracing::info;
 use tracing_subscriber;
+use systems_project::handlers::{register, login, me};
 
 async fn health() -> impl Responder {
     info!("Health check requested");
@@ -61,6 +62,9 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(pool))
             .wrap(cors)
             .route("/health", web::get().to(health))
+            .route("/auth/register", web::post().to(register))
+            .route("/auth/login", web::post().to(login))
+            .route("/auth/me", web::get().to(me))
     })
     .bind(&bind_address)?
     .run()
