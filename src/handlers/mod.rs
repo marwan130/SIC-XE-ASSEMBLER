@@ -1,2 +1,4 @@
 pub mod auth;
-pub use auth::{register, login, me};
+pub mod assembly;
+pub use auth::{register, login, me, google_auth, google_callback, github_auth, github_callback};
+pub use assembly::assemble;

@@ -1,8 +1,13 @@
-use actix_web::{web, HttpResponse, Responder};
+use actix_web::{web, HttpResponse, Responder, HttpRequest};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use sqlx::PgPool;
 use uuid::Uuid;
 use chrono::Utc;
+use oauth2::{
+    AuthorizationCode, CsrfToken, RedirectUrl, TokenResponse, basic::BasicClient,
+    reqwest::async_http_client,
+};
+use serde::{Deserialize, Serialize};
 
 use crate::models::{User, CreateUserRequest, LoginRequest, AuthResponse};
 use crate::auth::encode_token;
@@ -111,4 +116,250 @@ pub async fn me(
     .await?;
 
     Ok(HttpResponse::Ok().json(user_data))
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OAuthCallbackQuery {
+    pub code: String,
+    pub state: String,
+}
+
+fn google_client() -> Result<BasicClient, AppError> {
+    let client_id = std::env::var("GOOGLE_CLIENT_ID")
+        .map_err(|_| AppError::InternalError("GOOGLE_CLIENT_ID not set".to_string()))?;
+    let client_secret = std::env::var("GOOGLE_CLIENT_SECRET")
+        .map_err(|_| AppError::InternalError("GOOGLE_CLIENT_SECRET not set".to_string()))?;
+    let redirect_url = std::env::var("FRONTEND_URL")
+        .map_err(|_| AppError::InternalError("FRONTEND_URL not set".to_string()))?;
+
+    let redirect_url = RedirectUrl::new(format!("{}/auth/google/callback", redirect_url))
+        .map_err(|e| AppError::InternalError(format!("Invalid redirect URL: {}", e)))?;
+
+    Ok(BasicClient::new(
+        oauth2::ClientId::new(client_id),
+        Some(oauth2::ClientSecret::new(client_secret)),
+        oauth2::AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
+            .map_err(|e| AppError::InternalError(format!("Invalid auth URL: {}", e)))?,
+        Some(oauth2::TokenUrl::new("https://oauth2.googleapis.com/token".to_string())
+            .map_err(|e| AppError::InternalError(format!("Invalid token URL: {}", e)))?),
+    )
+    .set_redirect_uri(redirect_url))
+}
+
+pub async fn google_auth(_req: HttpRequest) -> Result<HttpResponse, AppError> {
+    let client = google_client()?;
+    
+    let (auth_url, _csrf_token) = client
+        .authorize_url(CsrfToken::new_random)
+        .url();
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "auth_url": auth_url.to_string()
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct GoogleUserInfo {
+    id: String,
+    email: String,
+    name: String,
+    picture: Option<String>,
+}
+
+pub async fn google_callback(
+    pool: web::Data<PgPool>,
+    query: web::Query<OAuthCallbackQuery>,
+) -> Result<impl Responder, AppError> {
+    let client = google_client()?;
+    
+    let token = client
+        .exchange_code(AuthorizationCode::new(query.code.clone()))
+        .request_async(async_http_client)
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to exchange code: {}", e)))?;
+
+    // Get user info from Google
+    let http_client = reqwest::Client::new();
+    let user_info: GoogleUserInfo = http_client
+        .get("https://www.googleapis.com/oauth2/v2/userinfo")
+        .bearer_auth(token.access_token().secret())
+        .send()
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to get user info: {}", e)))?
+        .json()
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to parse user info: {}", e)))?;
+
+    // Check if user exists
+    let existing_user = sqlx::query_as::<_, User>(
+        "SELECT * FROM users WHERE provider = 'google' AND provider_id = $1"
+    )
+    .bind(&user_info.id)
+    .fetch_optional(pool.get_ref())
+    .await?;
+
+    let user = if let Some(user) = existing_user {
+        user
+    } else {
+        // Create new user
+        let user_id = Uuid::new_v4();
+        let now = Utc::now();
+
+        sqlx::query(
+            "INSERT INTO users (id, email, name, avatar_url, provider, provider_id, created_at)
+             VALUES ($1, $2, $3, $4, 'google', $5, $6)"
+        )
+        .bind(user_id)
+        .bind(&user_info.email)
+        .bind(&user_info.name)
+        .bind(&user_info.picture)
+        .bind(&user_info.id)
+        .bind(now)
+        .execute(pool.get_ref())
+        .await?;
+
+        User {
+            id: user_id,
+            email: user_info.email,
+            password_hash: None,
+            name: user_info.name,
+            avatar_url: user_info.picture,
+            provider: "google".to_string(),
+            provider_id: Some(user_info.id),
+            created_at: now,
+        }
+    };
+
+    // Generate JWT
+    let jwt_token = encode_token(&user)
+        .map_err(|e| AppError::InternalError(format!("Failed to generate token: {}", e)))?;
+
+    let response = AuthResponse {
+        token: jwt_token,
+        user,
+    };
+
+    Ok(HttpResponse::Ok().json(response))
+}
+
+fn github_client() -> Result<BasicClient, AppError> {
+    let client_id = std::env::var("GITHUB_CLIENT_ID")
+        .map_err(|_| AppError::InternalError("GITHUB_CLIENT_ID not set".to_string()))?;
+    let client_secret = std::env::var("GITHUB_CLIENT_SECRET")
+        .map_err(|_| AppError::InternalError("GITHUB_CLIENT_SECRET not set".to_string()))?;
+    let redirect_url = std::env::var("FRONTEND_URL")
+        .map_err(|_| AppError::InternalError("FRONTEND_URL not set".to_string()))?;
+
+    let redirect_url = RedirectUrl::new(format!("{}/auth/github/callback", redirect_url))
+        .map_err(|e| AppError::InternalError(format!("Invalid redirect URL: {}", e)))?;
+
+    Ok(BasicClient::new(
+        oauth2::ClientId::new(client_id),
+        Some(oauth2::ClientSecret::new(client_secret)),
+        oauth2::AuthUrl::new("https://github.com/login/oauth/authorize".to_string())
+            .map_err(|e| AppError::InternalError(format!("Invalid auth URL: {}", e)))?,
+        Some(oauth2::TokenUrl::new("https://github.com/login/oauth/access_token".to_string())
+            .map_err(|e| AppError::InternalError(format!("Invalid token URL: {}", e)))?),
+    )
+    .set_redirect_uri(redirect_url))
+}
+
+pub async fn github_auth(_req: HttpRequest) -> Result<HttpResponse, AppError> {
+    let client = github_client()?;
+    
+    let (auth_url, _csrf_token) = client
+        .authorize_url(CsrfToken::new_random)
+        .url();
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "auth_url": auth_url.to_string()
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubUserInfo {
+    id: i64,
+    email: Option<String>,
+    login: String,
+    avatar_url: Option<String>,
+}
+
+pub async fn github_callback(
+    pool: web::Data<PgPool>,
+    query: web::Query<OAuthCallbackQuery>,
+) -> Result<impl Responder, AppError> {
+    let client = github_client()?;
+    
+    let token = client
+        .exchange_code(AuthorizationCode::new(query.code.clone()))
+        .request_async(async_http_client)
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to exchange code: {}", e)))?;
+
+    // Get user info from GitHub
+    let http_client = reqwest::Client::new();
+    let user_info: GitHubUserInfo = http_client
+        .get("https://api.github.com/user")
+        .bearer_auth(token.access_token().secret())
+        .header("User-Agent", "sic-xe-assembler")
+        .send()
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to get user info: {}", e)))?
+        .json()
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to parse user info: {}", e)))?;
+
+    let provider_id = user_info.id.to_string();
+    let email = user_info.email.unwrap_or_else(|| format!("{}@github.local", user_info.login));
+
+    // Check if user exists
+    let existing_user = sqlx::query_as::<_, User>(
+        "SELECT * FROM users WHERE provider = 'github' AND provider_id = $1"
+    )
+    .bind(&provider_id)
+    .fetch_optional(pool.get_ref())
+    .await?;
+
+    let user = if let Some(user) = existing_user {
+        user
+    } else {
+        // Create new user
+        let user_id = Uuid::new_v4();
+        let now = Utc::now();
+
+        sqlx::query(
+            "INSERT INTO users (id, email, name, avatar_url, provider, provider_id, created_at)
+             VALUES ($1, $2, $3, $4, 'github', $5, $6)"
+        )
+        .bind(user_id)
+        .bind(&email)
+        .bind(&user_info.login)
+        .bind(&user_info.avatar_url)
+        .bind(&provider_id)
+        .bind(now)
+        .execute(pool.get_ref())
+        .await?;
+
+        User {
+            id: user_id,
+            email,
+            password_hash: None,
+            name: user_info.login,
+            avatar_url: user_info.avatar_url,
+            provider: "github".to_string(),
+            provider_id: Some(provider_id),
+            created_at: now,
+        }
+    };
+
+    // Generate JWT
+    let jwt_token = encode_token(&user)
+        .map_err(|e| AppError::InternalError(format!("Failed to generate token: {}", e)))?;
+
+    let response = AuthResponse {
+        token: jwt_token,
+        user,
+    };
+
+    Ok(HttpResponse::Ok().json(response))
 }

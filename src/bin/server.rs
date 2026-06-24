@@ -3,7 +3,7 @@ use actix_cors::Cors;
 use sqlx::postgres::PgPoolOptions;
 use tracing::info;
 use tracing_subscriber;
-use systems_project::handlers::{register, login, me};
+use systems_project::handlers::{register, login, me, google_auth, google_callback, github_auth, github_callback};
 
 async fn health() -> impl Responder {
     info!("Health check requested");
@@ -65,6 +65,10 @@ async fn main() -> std::io::Result<()> {
             .route("/auth/register", web::post().to(register))
             .route("/auth/login", web::post().to(login))
             .route("/auth/me", web::get().to(me))
+            .route("/auth/google", web::get().to(google_auth))
+            .route("/auth/google/callback", web::get().to(google_callback))
+            .route("/auth/github", web::get().to(github_auth))
+            .route("/auth/github/callback", web::get().to(github_callback))
     })
     .bind(&bind_address)?
     .run()
