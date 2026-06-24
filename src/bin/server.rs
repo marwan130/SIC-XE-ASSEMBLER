@@ -1,8 +1,11 @@
 use actix_web::{web, App, HttpServer, HttpResponse, Responder};
 use actix_cors::Cors;
 use sqlx::postgres::PgPoolOptions;
+use tracing::info;
+use tracing_subscriber;
 
 async fn health() -> impl Responder {
+    info!("Health check requested");
     HttpResponse::Ok().json(serde_json::json!({
         "status": "healthy",
         "service": "sic-xe-assembler"
@@ -13,57 +16,53 @@ async fn health() -> impl Responder {
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
     
+    // Initialize tracing
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"))
+        )
+        .init();
+    
     let bind_address = std::env::var("BIND_ADDRESS")
         .unwrap_or_else(|_| "127.0.0.1:8080".to_string());
     
-    // Create database connection pool (optional for now)
-    let pool = if let Ok(database_url) = std::env::var("DATABASE_URL") {
-        println!("Connecting to database...");
-        match PgPoolOptions::new()
-            .max_connections(5)
-            .connect(&database_url)
-            .await
-        {
-            Ok(pool) => {
-                println!("Connected to database");
-                Some(pool)
-            }
-            Err(e) => {
-                eprintln!("Failed to connect to database: {}", e);
-                eprintln!("Continuing without database connection");
-                None
-            }
-        }
-    } else {
-        println!("DATABASE_URL not set, running without database");
-        None
-    };
+    let frontend_url = std::env::var("FRONTEND_URL")
+        .unwrap_or_else(|_| "http://localhost:5173".to_string());
     
-    println!("Starting server on {}", bind_address);
+    let database_url = std::env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set");
     
-    if let Some(pool) = pool {
-        HttpServer::new(move || {
-            let cors = Cors::permissive();
-            let pool = pool.clone();
-            
-            App::new()
-                .app_data(web::Data::new(pool))
-                .wrap(cors)
-                .route("/health", web::get().to(health))
-        })
-        .bind(&bind_address)?
-        .run()
+    // Create database connection pool 
+    info!("Connecting to database...");
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&database_url)
         .await
-    } else {
-        HttpServer::new(|| {
-            let cors = Cors::permissive();
-            
-            App::new()
-                .wrap(cors)
-                .route("/health", web::get().to(health))
-        })
-        .bind(&bind_address)?
-        .run()
-        .await
-    }
+        .expect("Failed to connect to database");
+    
+    info!("Connected to database successfully");
+    info!("Starting server on {}", bind_address);
+    info!("CORS allowed origin: {}", frontend_url);
+    
+    HttpServer::new(move || {
+        let cors = Cors::permissive()
+            .allowed_origin(&frontend_url)
+            .allowed_origin_fn(|origin, _req| {
+                origin.as_bytes().starts_with(b"http://localhost") ||
+                origin.as_bytes().starts_with(b"http://127.0.0.1")
+            })
+            .allow_any_method()
+            .allow_any_header()
+            .max_age(3600);
+        let pool = pool.clone();
+        
+        App::new()
+            .app_data(web::Data::new(pool))
+            .wrap(cors)
+            .route("/health", web::get().to(health))
+    })
+    .bind(&bind_address)?
+    .run()
+    .await
 }
