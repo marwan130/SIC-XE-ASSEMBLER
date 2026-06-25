@@ -15,8 +15,14 @@ Cargo.lock
 .DS_Store
 Thumbs.db
 
+# Environment
 .local/
 .env
 
 # Runtime generated files
 jobs/
+
+# Frontend 
+assembler-ui/node_modules/
+assembler-ui/dist/
+assembler-ui/build/
