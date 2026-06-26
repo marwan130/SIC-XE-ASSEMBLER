@@ -55,24 +55,42 @@ pub async fn assemble(
     fs::write(&input_path, &req.code)
         .map_err(|e| AppError::InternalError(format!("Failed to write input file: {}", e)))?;
     
-    // run assembler (this will call the existing assembler logic)
-    // we'll create placeholder outputs since we need to integrate with the actual assembler
-    let intermediate = "INTERMEDIATE OUTPUT".to_string();
-    let pass1 = "PASS 1 OUTPUT".to_string();
-    let symb_table = "SYMBOL TABLE OUTPUT".to_string();
-    let lit_table = "LITERAL TABLE OUTPUT".to_string();
-    let object_program = "OBJECT PROGRAM OUTPUT".to_string();
+    // run assembler 
+    let mut pass1_engine = crate::pass1::Pass1::new();
+    let _ = pass1_engine.process_file(&input_path)
+        .map_err(|e| AppError::BadRequest(format!("Failed to process source file: {}", e)))?;
     
-    fs::write(format!("{}/intermediate.txt", output_dir), &intermediate)
-        .map_err(|e| AppError::InternalError(format!("Failed to write intermediate file: {}", e)))?;
+    pass1_engine.pass1_generator(&output_dir)
+        .map_err(|e| AppError::BadRequest(format!("Assembly Error (Pass 1): {}", e)))?;
+        
+    let intermediate_path = format!("{}/intermediate.txt", output_dir);
+    let symbol_path = format!("{}/symbTable.txt", output_dir);
+    let literal_path = format!("{}/litTable.txt", output_dir);
+    let object_path = format!("{}/objectProgram.txt", output_dir);
+    
+    let mut pass2_engine = crate::pass2::Pass2::new();
+    let _ = pass2_engine.pass2_generator(&intermediate_path, &symbol_path, &literal_path, &object_path)
+        .map_err(|e| AppError::BadRequest(format!("Assembly Error (Pass 2): {}", e)))?;
+        
+    // read generated files to return them in the response and database
+    let intermediate = fs::read_to_string(&intermediate_path)
+        .map_err(|e| AppError::InternalError(format!("Failed to read intermediate file: {}", e)))?;
+        
+    let pass1 = fs::read_to_string(&intermediate_path)
+        .map_err(|e| AppError::InternalError(format!("Failed to read intermediate file: {}", e)))?;
+        
+    let symb_table = fs::read_to_string(&symbol_path)
+        .map_err(|e| AppError::InternalError(format!("Failed to read symbol table file: {}", e)))?;
+        
+    let lit_table = fs::read_to_string(&literal_path)
+        .map_err(|e| AppError::InternalError(format!("Failed to read literal table file: {}", e)))?;
+        
+    let object_program = fs::read_to_string(&object_path)
+        .map_err(|e| AppError::InternalError(format!("Failed to read object program file: {}", e)))?;
+        
+    // write pass1.txt for compatibility / backup
     fs::write(format!("{}/pass1.txt", output_dir), &pass1)
-        .map_err(|e| AppError::InternalError(format!("Failed to write pass1 file: {}", e)))?;
-    fs::write(format!("{}/symbTable.txt", output_dir), &symb_table)
-        .map_err(|e| AppError::InternalError(format!("Failed to write symbol table file: {}", e)))?;
-    fs::write(format!("{}/litTable.txt", output_dir), &lit_table)
-        .map_err(|e| AppError::InternalError(format!("Failed to write literal table file: {}", e)))?;
-    fs::write(format!("{}/objectProgram.txt", output_dir), &object_program)
-        .map_err(|e| AppError::InternalError(format!("Failed to write object program file: {}", e)))?;
+        .map_err(|e| AppError::InternalError(format!("Failed to write pass1 backup file: {}", e)))?;
     
     // save to database if authenticated
     if let Some(user) = user {

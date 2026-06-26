@@ -1,9 +1,5 @@
-mod pass1;
-mod pass2;
-mod conversions;
-
-use pass1::Pass1;
-use pass2::Pass2;
+use systems_project::pass1::Pass1;
+use systems_project::pass2::Pass2;
 use std::env;
 use std::fs;
 
@@ -31,7 +27,10 @@ fn main() {
     
     let mut pass1 = Pass1::new();
     let _ = pass1.process_file(&input_file);
-    pass1.pass1_generator(&output_dir);
+    if let Err(e) = pass1.pass1_generator(&output_dir) {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    }
 
     let mut pass2 = Pass2::new();
     let _ = pass2.pass2_generator(&intermediate_path, &symbol_path, &literal_path, &object_path);

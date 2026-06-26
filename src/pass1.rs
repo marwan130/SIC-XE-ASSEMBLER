@@ -64,7 +64,7 @@ impl Pass1 {
         Ok(())
     }
 
-    pub fn pass1_generator(&mut self, output_dir: &str) {
+    pub fn pass1_generator(&mut self, output_dir: &str) -> Result<(), String> {
         let intermediate_path = format!("{}/intermediate.txt", output_dir);
         let symbol_path = format!("{}/symbTable.txt", output_dir);
         let literal_path = format!("{}/litTable.txt", output_dir);
@@ -98,8 +98,7 @@ impl Pass1 {
             if instr_type == "USE" {
                 let valid_blocks = ["DEFAULT", "DEFAULTB", "CDATA", "CBLKS"];
                 if !valid_blocks.contains(&ref_type.as_str()) {
-                    eprintln!("Error: Unidentified block name '{}' at line {}", ref_type, i + 1);
-                    std::process::exit(1);
+                    return Err(format!("Unidentified block name '{}' at line {}", ref_type, i + 1));
                 }
                 current_block = ref_type.clone();
                 let locctr = *block_locctrs.get(&current_block).unwrap_or(&0);
@@ -228,8 +227,7 @@ impl Pass1 {
                         let operand = part.trim();
                         if !operand.is_empty() && !operand.chars().all(|c| c.is_digit(10) || c.is_uppercase()) && !operand.contains("'") {
                             if !absolute_symbols.contains_key(operand) && !["A", "X", "L", "B", "S", "T", "F", "Z", "N", "C", "V"].contains(&operand) {
-                                eprintln!("Error: Unidentified symbol '{}' at line {}", operand, i + 1);
-                                std::process::exit(1);
+                                return Err(format!("Unidentified symbol '{}' at line {}", operand, i + 1));
                             }
                         }
                     }
@@ -244,6 +242,8 @@ impl Pass1 {
         for (literal, addr) in absolute_literals {
             writeln!(literals_table, "{:<10} {:04X}", literal, addr).unwrap();
         }
+        
+        Ok(())
     }
 
     fn calculate_byte_size(&self, ref_type: &str) -> usize {

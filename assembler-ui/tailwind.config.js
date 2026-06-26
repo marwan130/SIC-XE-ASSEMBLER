@@ -13,6 +13,12 @@ export default {
         'electric-blue': '#00E0FF',
         'dark-bg': '#0A0A0A',
         'dark-bg-secondary': '#121212',
+        'neon-green': '#00FF66',
+        'cyber-yellow': '#FFF500',
+        'hot-pink': '#FF007A',
+        'electric-blue': '#00E0FF',
+        'cyber-panel': '#121212',
+        'cyber-secondary-panel': '#1a1a2e',
       },
       boxShadow: {
         '3d': '4px 4px 0px #000000',
