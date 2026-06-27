@@ -5,7 +5,7 @@ use tracing::info;
 use tracing_subscriber;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-use systems_project::handlers::{register, login, me, google_auth, google_callback, github_auth, github_callback, assemble, get_history, get_job, delete_job};
+use systems_project::handlers::{register, login, me, google_auth, google_callback, github_auth, github_callback, assemble, get_history, get_job, delete_job, delete_all_jobs};
 use systems_project::ApiDoc;
 
 async fn health() -> impl Responder {
@@ -55,8 +55,9 @@ async fn main() -> std::io::Result<()> {
         let cors = Cors::permissive()
             .allowed_origin(&frontend_url)
             .allowed_origin_fn(|origin, _req| {
-                origin.as_bytes().starts_with(b"http://localhost") ||
-                origin.as_bytes().starts_with(b"http://127.0.0.1")
+                let origin_bytes = origin.as_bytes();
+                origin_bytes.starts_with(b"http://localhost") ||
+                origin_bytes.starts_with(b"http://127.0.0.1")
             })
             .allow_any_method()
             .allow_any_header()
@@ -80,6 +81,7 @@ async fn main() -> std::io::Result<()> {
             .route("/auth/github/callback", web::get().to(github_callback))
             .route("/assemble", web::post().to(assemble))
             .route("/history", web::get().to(get_history))
+            .route("/history", web::delete().to(delete_all_jobs))
             .route("/history/{id}", web::get().to(get_job))
             .route("/history/{id}", web::delete().to(delete_job))
     })

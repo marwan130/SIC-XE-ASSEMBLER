@@ -22,10 +22,10 @@ export default function OutputTabs({ activeTab, setActiveTab }: OutputTabsProps)
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`font-mono text-xs uppercase transition-[color,background-color,transform] border-3 border-black cursor-pointer font-bold select-none ${
+            className={`font-mono text-[10px] uppercase transition-[color,background-color,transform] border-3 border-black cursor-pointer font-bold select-none ${
               isActive
-                ? 'bg-cyber-yellow text-black px-4 py-2.5 translate-y-[2px] shadow-[3px_3px_0px_#000] z-10 text-[13px]'
-                : 'bg-cyber-panel text-white hover:bg-white hover:text-black px-3 py-1.5 text-[11px]'
+                ? 'bg-cyber-yellow text-black px-4 py-2.5 translate-y-[2px] shadow-[3px_3px_0px_#000] z-10 text-[12px]'
+                : 'bg-cyber-panel text-white hover:bg-white hover:text-black px-3 py-1.5 text-[10px]'
             }`}
             style={{
               transition: 'none', 

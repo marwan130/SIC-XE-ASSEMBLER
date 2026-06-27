@@ -25,8 +25,8 @@ export default function HistoryGrid({
       {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 border-b-3 border-black pb-4">
         <div>
-          <h2 className="font-press text-[16px] text-cyber-yellow font-bold uppercase tracking-tight">
-            SYSTEM SNAPSHOT SNAPSHOTS_LOG
+          <h2 className="font-press text-[18px] text-cyber-yellow font-bold uppercase tracking-tight">
+            SYSTEM SNAPSHOT 
           </h2>
           <p className="font-mono text-[10px] text-gray-500 uppercase mt-1">
             Browse and load historic SIC/XE assembler listings
@@ -39,7 +39,7 @@ export default function HistoryGrid({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="SEARCH SNAPSHOTS..."
-          className="bg-cyber-panel border-3 border-black p-2.5 font-mono text-xs text-neon-green placeholder:text-gray-600 focus:outline-none focus:ring-0 focus:border-neon-green shadow-[2px_2px_0px_#000] w-full md:w-64 uppercase"
+          className="bg-cyber-panel border-3 border-black p-2.5 font-mono text-[10px] text-neon-green placeholder:text-gray-600 focus:outline-none focus:ring-0 focus:border-neon-green shadow-[2px_2px_0px_#000] w-full md:w-64 uppercase"
         />
       </div>
 
@@ -58,7 +58,7 @@ export default function HistoryGrid({
           <h3 className="font-press text-[12px] text-hot-pink font-bold uppercase tracking-wider mb-2">
             NO SAVES YET
           </h3>
-          <p className="font-mono text-[9px] text-gray-500 uppercase tracking-widest">
+          <p className="font-mono text-[10px] text-gray-500 uppercase tracking-widest">
             {search ? 'NO CORRESPONDING SNAPSHOTS DETECTED' : 'ASSEMBLE AND SAVE TO LOG OFFSETS'}
           </p>
         </div>

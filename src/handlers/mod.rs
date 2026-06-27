@@ -22,6 +22,7 @@ use utoipa::OpenApi;
         assembly::get_history,
         assembly::get_job,
         assembly::delete_job,
+        assembly::delete_all_jobs,
     ),
     tags(
         (name = "Authentication", description = "User authentication endpoints"),
@@ -42,4 +43,4 @@ use utoipa::OpenApi;
 pub struct ApiDoc;
 
 pub use auth::{register, login, me, google_auth, google_callback, github_auth, github_callback};
-pub use assembly::{assemble, get_history, get_job, delete_job};
+pub use assembly::{assemble, get_history, get_job, delete_job, delete_all_jobs};

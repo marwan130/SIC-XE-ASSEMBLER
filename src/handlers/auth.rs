@@ -161,10 +161,10 @@ fn google_client() -> Result<BasicClient, AppError> {
         .map_err(|_| AppError::InternalError("GOOGLE_CLIENT_ID not set".to_string()))?;
     let client_secret = std::env::var("GOOGLE_CLIENT_SECRET")
         .map_err(|_| AppError::InternalError("GOOGLE_CLIENT_SECRET not set".to_string()))?;
-    let redirect_url = std::env::var("FRONTEND_URL")
-        .map_err(|_| AppError::InternalError("FRONTEND_URL not set".to_string()))?;
+    let backend_url = std::env::var("API_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:8080".to_string());
 
-    let redirect_url = RedirectUrl::new(format!("{}/auth/google/callback", redirect_url))
+    let redirect_url = RedirectUrl::new(format!("{}/auth/google/callback", backend_url))
         .map_err(|e| AppError::InternalError(format!("Invalid redirect URL: {}", e)))?;
 
     Ok(BasicClient::new(
@@ -182,7 +182,7 @@ fn google_client() -> Result<BasicClient, AppError> {
     get,
     path = "/auth/google",
     responses(
-        (status = 200, description = "Returns Google OAuth authorization URL", body = serde_json::Value)
+        (status = 307, description = "Redirects to Google OAuth authorization page")
     ),
     tag = "Authentication"
 )]
@@ -191,11 +191,14 @@ pub async fn google_auth(_req: HttpRequest) -> Result<HttpResponse, AppError> {
     
     let (auth_url, _csrf_token) = client
         .authorize_url(CsrfToken::new_random)
+        .add_scope(oauth2::Scope::new("openid".to_string()))
+        .add_scope(oauth2::Scope::new("email".to_string()))
+        .add_scope(oauth2::Scope::new("profile".to_string()))
         .url();
 
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "auth_url": auth_url.to_string()
-    })))
+    Ok(HttpResponse::Found()
+        .append_header(("Location", auth_url.as_str()))
+        .finish())
 }
 
 #[derive(Debug, Deserialize)]
@@ -286,12 +289,15 @@ pub async fn google_callback(
     let jwt_token = encode_token(&user)
         .map_err(|e| AppError::InternalError(format!("Failed to generate token: {}", e)))?;
 
-    let response = AuthResponse {
-        token: jwt_token,
-        user,
-    };
+    let frontend_url = std::env::var("FRONTEND_URL")
+        .unwrap_or_else(|_| "http://localhost:5173".to_string());
 
-    Ok(HttpResponse::Ok().json(response))
+    // redirect to frontend with token in URL fragment
+    let redirect_url = format!("{}/#token={}", frontend_url, jwt_token);
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", redirect_url))
+        .finish())
 }
 
 fn github_client() -> Result<BasicClient, AppError> {
@@ -299,10 +305,10 @@ fn github_client() -> Result<BasicClient, AppError> {
         .map_err(|_| AppError::InternalError("GITHUB_CLIENT_ID not set".to_string()))?;
     let client_secret = std::env::var("GITHUB_CLIENT_SECRET")
         .map_err(|_| AppError::InternalError("GITHUB_CLIENT_SECRET not set".to_string()))?;
-    let redirect_url = std::env::var("FRONTEND_URL")
-        .map_err(|_| AppError::InternalError("FRONTEND_URL not set".to_string()))?;
+    let backend_url = std::env::var("API_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:8080".to_string());
 
-    let redirect_url = RedirectUrl::new(format!("{}/auth/github/callback", redirect_url))
+    let redirect_url = RedirectUrl::new(format!("{}/auth/github/callback", backend_url))
         .map_err(|e| AppError::InternalError(format!("Invalid redirect URL: {}", e)))?;
 
     Ok(BasicClient::new(
@@ -320,7 +326,7 @@ fn github_client() -> Result<BasicClient, AppError> {
     get,
     path = "/auth/github",
     responses(
-        (status = 200, description = "Returns GitHub OAuth authorization URL", body = serde_json::Value)
+        (status = 307, description = "Redirects to GitHub OAuth authorization page")
     ),
     tag = "Authentication"
 )]
@@ -331,9 +337,9 @@ pub async fn github_auth(_req: HttpRequest) -> Result<HttpResponse, AppError> {
         .authorize_url(CsrfToken::new_random)
         .url();
 
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "auth_url": auth_url.to_string()
-    })))
+    Ok(HttpResponse::Found()
+        .append_header(("Location", auth_url.as_str()))
+        .finish())
 }
 
 #[derive(Debug, Deserialize)]
@@ -428,10 +434,13 @@ pub async fn github_callback(
     let jwt_token = encode_token(&user)
         .map_err(|e| AppError::InternalError(format!("Failed to generate token: {}", e)))?;
 
-    let response = AuthResponse {
-        token: jwt_token,
-        user,
-    };
+    let frontend_url = std::env::var("FRONTEND_URL")
+        .unwrap_or_else(|_| "http://localhost:5173".to_string());
 
-    Ok(HttpResponse::Ok().json(response))
+    // redirect to frontend with token in URL fragment
+    let redirect_url = format!("{}/#token={}", frontend_url, jwt_token);
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", redirect_url))
+        .finish())
 }

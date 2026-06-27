@@ -43,12 +43,12 @@ export default function HistoryCard({ session, onSelect, onDelete }: HistoryCard
       </button>
 
       {/* Title */}
-      <h3 className="font-press text-[11px] text-neon-green group-hover:text-black font-bold uppercase mb-2 tracking-tight truncate pr-6">
+      <h3 className="font-press text-[12px] text-neon-green group-hover:text-black font-bold uppercase mb-2 tracking-tight truncate pr-6">
         {session.title}
       </h3>
 
       {/* Log Date */}
-      <div className="font-mono text-[9px] text-gray-500 mb-3 group-hover:text-black/60">
+      <div className="font-mono text-[10px] text-gray-500 mb-3 group-hover:text-black/60">
         RECORDED: {dateStr}
       </div>
 
@@ -60,7 +60,7 @@ export default function HistoryCard({ session, onSelect, onDelete }: HistoryCard
       </div>
 
       <div className="mt-3 text-right">
-        <span className="font-press text-[8px] text-cyber-yellow group-hover:text-black font-bold block">
+        <span className="font-press text-[10px] text-cyber-yellow group-hover:text-black font-bold block">
           [ LOAD SNAPSHOT &gt;&gt; ]
         </span>
       </div>

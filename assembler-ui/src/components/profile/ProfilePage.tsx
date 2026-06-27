@@ -30,7 +30,7 @@ export default function ProfilePage({
     <div className="flex-1 p-6 overflow-y-auto select-none max-w-5xl mx-auto w-full h-full space-y-8">
       {/* Top Header */}
       <div className="border-b-3 border-black pb-4">
-        <h2 className="font-press text-[16px] text-cyber-yellow font-bold uppercase tracking-tight">
+        <h2 className="font-press text-[18px] text-cyber-yellow font-bold uppercase tracking-tight">
           OPERATOR_PROFILE // SYSTEM_DIAGNOSTICS
         </h2>
         <p className="font-mono text-[10px] text-gray-500 uppercase mt-1">
@@ -43,12 +43,12 @@ export default function ProfilePage({
         {/* Avatar Area */}
         <div className="relative flex-shrink-0 mx-auto sm:mx-0">
           <div className="w-32 h-32 border-3 border-black bg-black overflow-hidden shadow-[3px_3px_0px_#000] flex items-center justify-center">
-            <span className="text-neon-green font-press text-[48px] font-bold">
+            <span className="text-theme-accent font-press text-[18px] font-bold">
               {user.email[0].toUpperCase()}
             </span>
           </div>
           {/* LVL Badge */}
-          <div className="absolute -bottom-1 -right-1 bg-cyber-yellow text-black border-2 border-black px-2 py-0.5 font-press text-[8px] font-bold rotate-6 shadow-[1.5px_1.5px_0px_#000]">
+          <div className="absolute -bottom-1 -right-1 bg-theme-accent text-black border-2 border-black px-2 py-0.5 font-press text-[10px] font-bold rotate-6 shadow-[1.5px_1.5px_0px_#000]">
             LVL_1
           </div>
         </div>
@@ -56,22 +56,22 @@ export default function ProfilePage({
         {/* Details Area */}
         <div className="flex-1 space-y-3 min-w-0 w-full text-center sm:text-left">
           <div>
-            <h3 className="font-press text-[12px] text-neon-green font-bold uppercase tracking-tight truncate">
+            <h3 className="font-press text-[12px] text-theme-accent font-bold uppercase tracking-tight truncate">
               OPERATOR: {user.email}
             </h3>
-            <p className="text-gray-400 font-mono text-[11px] border-l-2 border-neon-green pl-3 py-0.5 mt-1 select-text">
+            <p className="text-gray-400 font-mono text-[10px] border-l-2 border-theme-accent pl-3 py-0.5 mt-1 select-text">
               "If it fits in 24 bits, it ships."
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4 pt-2">
             <div className="border border-dashed border-gray-700 p-2.5 bg-black/40">
-              <span className="text-[8px] text-gray-500 font-press block mb-1">SYSTEM_UID</span>
-              <span className="text-cyber-yellow font-mono text-xs font-bold select-text">{user.id.slice(0, 8).toUpperCase()}</span>
+              <span className="text-[10px] text-gray-500 font-press block mb-1">SYSTEM_UID</span>
+              <span className="text-theme-accent font-mono text-[10px] font-bold select-text">{user.id.slice(0, 8).toUpperCase()}</span>
             </div>
             <div className="border border-dashed border-gray-700 p-2.5 bg-black/40">
-              <span className="text-[8px] text-gray-500 font-press block mb-1">REGISTRATION</span>
-              <span className="text-cyber-yellow font-mono text-xs font-bold select-text">{formatDate(user.created_at)}</span>
+              <span className="text-[10px] text-gray-500 font-press block mb-1">REGISTRATION</span>
+              <span className="text-theme-accent font-mono text-[10px] font-bold select-text">{formatDate(user.created_at)}</span>
             </div>
           </div>
         </div>
@@ -81,14 +81,14 @@ export default function ProfilePage({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Security & Credentials */}
         <section className="bg-cyber-panel border-3 border-black p-6 shadow-[4px_4px_0px_#000]">
-          <h4 className="font-press text-[10px] text-cyber-yellow font-bold mb-6 flex items-center gap-2 uppercase">
+          <h4 className="font-press text-[12px] text-theme-accent font-bold mb-6 flex items-center gap-2 uppercase">
             <Lock className="w-4 h-4" />
             ENCRYPTION_OVERRIDE
           </h4>
 
           <div className="space-y-4">
             <div className="space-y-1">
-              <label className="text-[8px] font-press text-gray-500 uppercase">OPERATOR_ID_HANDLE</label>
+              <label className="text-[10px] font-press text-gray-500 uppercase">OPERATOR_ID_HANDLE</label>
               <input
                 type="text"
                 value={user.email}
@@ -108,21 +108,21 @@ export default function ProfilePage({
         {/* UI Customizer settings */}
         <section className="bg-cyber-panel border-3 border-black p-6 shadow-[4px_4px_0px_#000] flex flex-col justify-between">
           <div className="space-y-6">
-            <h4 className="font-press text-[10px] text-electric-blue font-bold mb-4 flex items-center gap-2 uppercase">
+            <h4 className="font-press text-[12px] text-theme-accent font-bold mb-4 flex items-center gap-2 uppercase">
               <Palette className="w-4 h-4" />
               UI_CONFIG_PARAMS
             </h4>
 
             {/* Accent Theme choice */}
             <div className="space-y-2">
-              <label className="text-[8px] font-press text-gray-500 uppercase">TERMINAL_THEME</label>
+              <label className="text-[10px] font-press text-gray-500 uppercase">TERMINAL_THEME</label>
               <div className="grid grid-cols-3 gap-2">
                 {(['neon', 'cyber', 'pink'] as TerminalTheme[]).map((t) => {
                   const isActive = theme === t;
                   const bgColors = {
-                    neon: 'bg-neon-green text-black',
-                    cyber: 'bg-cyber-yellow text-black',
-                    pink: 'bg-hot-pink text-black',
+                    neon: 'bg-[#00FF66] text-black',
+                    cyber: 'bg-[#FFF500] text-black',
+                    pink: 'bg-[#FF007A] text-black',
                   };
 
                   return (
@@ -145,12 +145,12 @@ export default function ProfilePage({
 
             {/* Custom Mouse Toggle */}
             <div className="space-y-2 pt-2">
-              <label className="text-[8px] font-press text-gray-500 uppercase">HAND_CURSOR_PROTOCOL</label>
+              <label className="text-[10px] font-press text-gray-500 uppercase">HAND_CURSOR_PROTOCOL</label>
               <div className="flex items-center border-3 border-black w-fit">
                 <button
                   onClick={() => setCustomCursor(true)}
-                  className={`px-4 py-1.5 font-press text-[9px] cursor-pointer font-bold border-r-3 border-black ${
-                    customCursor ? 'bg-cyber-yellow text-black' : 'bg-[#0a0a0f] text-gray-600 hover:bg-white/5'
+                  className={`px-4 py-1.5 font-press text-[10px] cursor-pointer font-bold border-r-3 border-black ${
+                    customCursor ? 'bg-theme-accent text-black' : 'bg-[#0a0a0f] text-gray-600 hover:bg-white/5'
                   }`}
                   style={{ transition: 'none' }}
                 >
@@ -158,8 +158,8 @@ export default function ProfilePage({
                 </button>
                 <button
                   onClick={() => setCustomCursor(false)}
-                  className={`px-4 py-1.5 font-press text-[9px] cursor-pointer font-bold ${
-                    !customCursor ? 'bg-cyber-yellow text-black' : 'bg-[#0a0a0f] text-gray-600 hover:bg-white/5'
+                  className={`px-4 py-1.5 font-press text-[10px] cursor-pointer font-bold ${
+                    !customCursor ? 'bg-theme-accent text-black' : 'bg-[#0a0a0f] text-gray-600 hover:bg-white/5'
                   }`}
                   style={{ transition: 'none' }}
                 >
@@ -174,7 +174,7 @@ export default function ProfilePage({
       {/* Wipe Data Area */}
       <section className="border-3 border-hot-pink bg-hot-pink/5 p-6 shadow-[3px_3px_0px_rgba(255,0,122,0.15)] flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="text-center sm:text-left">
-          <h4 className="text-hot-pink font-press text-[11px] font-bold uppercase flex items-center justify-center sm:justify-start gap-2">
+          <h4 className="text-hot-pink font-press text-[12px] font-bold uppercase flex items-center justify-center sm:justify-start gap-2">
             <ShieldAlert className="w-4 h-4" />
             WIPE_TERMINAL_DATA
           </h4>
@@ -189,7 +189,7 @@ export default function ProfilePage({
               alert('PURGE COMPLETE.');
             }
           }}
-          className="bg-hot-pink hover:bg-white text-black font-press text-[9px] font-bold py-3 px-6 border-3 border-black shadow-[3px_3px_0px_#000] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all cursor-pointer uppercase shrink-0"
+          className="bg-hot-pink hover:bg-white text-black font-press text-[10px] font-bold py-3 px-6 border-3 border-black shadow-[3px_3px_0px_#000] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all cursor-pointer uppercase shrink-0"
         >
           PURGE_ALL
         </button>

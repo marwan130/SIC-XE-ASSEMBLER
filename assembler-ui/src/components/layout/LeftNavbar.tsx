@@ -60,17 +60,17 @@ export default function LeftNavbar({
         <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#FF007A] to-transparent"></div>
         
         {collapsed ? (
-          <div className="w-8 h-8 bg-black border-2 border-[#FF007A] flex items-center justify-center animate-pulse shadow-[0_0_8px_#FF007A]">
-            <span className="font-press text-[12px] text-[#FF007A] font-bold">X</span>
+          <div className="w-8 h-8 bg-black border-2 border-theme-accent flex items-center justify-center animate-pulse shadow-[0_0_8px_var(--theme-accent)]">
+            <span className="font-press text-[12px] text-theme-accent font-bold">X</span>
           </div>
         ) : (
           <div className="text-center min-w-[140px]">
-            <h1 className="font-press text-[14px] text-white font-bold tracking-tighter uppercase relative">
-              SIC/<span className="text-[#FF007A] animate-pulse">XE</span>
+            <h1 className="font-press text-[18px] text-white font-bold tracking-tighter uppercase relative">
+              SIC/<span className="text-theme-accent animate-pulse">XE</span>
             </h1>
             <div className="flex items-center justify-center gap-1 mt-1">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#00FF66] animate-ping"></span>
-              <span className="font-mono text-[8px] text-[#00FF66] tracking-widest font-bold">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-theme-accent animate-ping"></span>
+              <span className="font-mono text-[10px] text-theme-accent tracking-widest font-bold">
                 CPU_LINK_ON
               </span>
             </div>
@@ -91,20 +91,20 @@ export default function LeftNavbar({
                 playSelectSound(isActive);
                 setActivePage(item.id);
               }}
-              className={`w-[calc(100%-16px)] mx-2 py-3 px-3 flex items-center gap-3 transition-all duration-75 uppercase font-press text-[9px] text-left border-2 ${
+              className={`w-[calc(100%-16px)] mx-2 py-3 px-3 flex items-center gap-3 transition-all duration-75 uppercase font-press text-[10px] text-left border-2 ${
                 isActive
-                  ? 'bg-black text-white border-[#FF007A] shadow-[3px_3px_0px_#FF007A]'
+                  ? 'bg-black text-white border-theme-accent shadow-[3px_3px_0px_var(--theme-accent)]'
                   : 'text-gray-400 bg-[#121212] border-black hover:text-white hover:border-neutral-700 hover:translate-x-0.5'
               }`}
             >
-              <Icon 
-                className="w-4 h-4 flex-shrink-0" 
-                style={{ color: isActive ? '#FF007A' : item.color }} 
+              <Icon
+                className="w-4 h-4 flex-shrink-0"
+                style={{ color: isActive ? 'var(--theme-accent)' : item.color }}
               />
               {!collapsed && (
                 <span className="truncate flex-1 flex justify-between items-center">
                   {item.label}
-                  {isActive && <span className="text-[#FF007A] text-[7px] animate-bounce">◀</span>}
+                  {isActive && <span className="text-theme-accent text-[10px] animate-bounce">◀</span>}
                 </span>
               )}
             </button>
@@ -129,11 +129,11 @@ export default function LeftNavbar({
             </div>
             {!collapsed && (
               <div className="flex flex-col min-w-0">
-                <span className="font-press text-[7px] text-white truncate font-bold">
+                <span className="font-press text-[10px] text-white truncate font-bold">
                   {user.email.split('@')[0]}
                 </span>
-                <span className="font-mono text-[9px] text-[#FFF500] uppercase tracking-wider">
-                  RANK // OPERATOR
+                <span className="font-mono text-[12px] text-[#FFF500] uppercase tracking-wider">
+                  OPERATOR
                 </span>
               </div>
             )}
@@ -145,7 +145,7 @@ export default function LeftNavbar({
                 playSelectSound(true); 
                 onLogin(); 
               }}
-              className="w-full py-2 px-2 flex items-center gap-3 text-gray-400 bg-black hover:text-[#00FF66] border-2 border-neutral-900 hover:border-[#00FF66] transition-all duration-75 uppercase font-press text-[9px] text-left"
+              className="w-full py-2 px-2 flex items-center gap-3 text-gray-400 bg-black hover:text-[#00FF66] border-2 border-neutral-900 hover:border-[#00FF66] transition-all duration-75 uppercase font-press text-[10px] text-left"
             >
               <User className="w-4 h-4 text-[#00FF66] flex-shrink-0" />
               {!collapsed && <span>CONNECT_SYS</span>}

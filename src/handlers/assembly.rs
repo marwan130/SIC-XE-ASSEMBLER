@@ -245,3 +245,46 @@ pub async fn delete_job(
         "message": "Job deleted successfully"
     })))
 }
+
+#[utoipa::path(
+    delete,
+    path = "/history",
+    responses(
+        (status = 200, description = "All jobs deleted successfully"),
+        (status = 401, description = "Unauthorized - invalid or missing token")
+    ),
+    security(
+        ("bearer_auth" = [])
+    ),
+    tag = "Assembly"
+)]
+pub async fn delete_all_jobs(
+    pool: web::Data<PgPool>,
+    user: AuthenticatedUser,
+) -> Result<impl Responder, AppError> {
+    // get all job IDs for this user to delete their directories
+    let jobs = sqlx::query_as::<_, AssemblyJob>(
+        "SELECT * FROM assembly_jobs WHERE user_id = $1"
+    )
+    .bind(user.user_id)
+    .fetch_all(pool.get_ref())
+    .await?;
+
+    // delete all job directories from filesystem
+    for job in &jobs {
+        let job_dir = format!("jobs/{}", job.id);
+        if fs::exists(&job_dir).unwrap_or(false) {
+            let _ = fs::remove_dir_all(&job_dir);
+        }
+    }
+
+    // delete all jobs from database
+    sqlx::query("DELETE FROM assembly_jobs WHERE user_id = $1")
+        .bind(user.user_id)
+        .execute(pool.get_ref())
+        .await?;
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "message": "All jobs deleted successfully"
+    })))
+}

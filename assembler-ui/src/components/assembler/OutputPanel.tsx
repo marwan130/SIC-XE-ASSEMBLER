@@ -85,12 +85,12 @@ export default function OutputPanel({
         <OutputTabs activeTab={activeTab} setActiveTab={setActiveTab as any} />
       </div>
 
-      <div className="flex-1 bg-black/50 backdrop-blur-md p-4 overflow-auto relative flex flex-col shadow-[inset_0_0_12px_rgba(0,0,0,0.9)] pixel-border">
+      <div className="flex-1 bg-black/80 p-4 overflow-auto relative flex flex-col shadow-[inset_0_0_12px_rgba(0,0,0,0.9)] pixel-border custom-scrollbar">
         {isLoading && <LoadingCoin />}
 
         {!isLoading && (
-          <pre 
-            className="flex-1 font-mono text-[12px] whitespace-pre text-electric-blue select-text overflow-auto leading-relaxed"
+          <pre
+            className="flex-1 font-mono text-[12px] whitespace-pre text-theme-accent select-text overflow-auto leading-relaxed will-change-transform custom-scrollbar"
             style={{
               fontFamily: '"JetBrains Mono", monospace',
             }}
@@ -110,7 +110,7 @@ export default function OutputPanel({
         <button
           onClick={downloadSingleFile}
           disabled={!outputs || isLoading}
-          className="bg-electric-blue text-black font-press text-[10px] font-bold p-3 border-3 border-black shadow-[4px_4px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer hover:bg-white hover:text-black uppercase flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-none"
+          className="bg-electric-blue text-black font-press text-[10px] font-bold p-3 border-3 border-black shadow-[4px_4px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer hover:bg-white hover:text-black uppercase flex items-center justify-center gap-2 disabled:opacity-30"
         >
           <Download className="w-4 h-4 shrink-0" />
           <span>DOWNLOAD THIS</span>
@@ -119,7 +119,7 @@ export default function OutputPanel({
         <button
           onClick={downloadAllFilesAsZip}
           disabled={!outputs || isLoading}
-          className="bg-hot-pink text-black font-press text-[10px] font-bold p-3 border-3 border-black shadow-[4px_4px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer hover:bg-white hover:text-black uppercase flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-none"
+          className="bg-hot-pink text-black font-press text-[10px] font-bold p-3 border-3 border-black shadow-[4px_4px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer hover:bg-white hover:text-black uppercase flex items-center justify-center gap-2 disabled:opacity-30"
         >
           <FileArchive className="w-4 h-4 shrink-0" />
           <span>DOWNLOAD ALL</span>

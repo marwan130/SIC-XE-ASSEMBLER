@@ -57,8 +57,7 @@ export default function StarField() {
     resizeCanvas();
 
     const draw = () => {
-      ctx.fillStyle = '#09090D'; 
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       stars.forEach((star) => {
         // Update twinkling phase

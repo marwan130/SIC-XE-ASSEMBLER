@@ -10,6 +10,10 @@ interface LoginPageProps {
   onClose?: () => void;
 }
 
+function isValidEmail(val: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
+}
+
 export default function LoginPage({
   onLogin,
   onSwitchToRegister,
@@ -19,39 +23,82 @@ export default function LoginPage({
 }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Validate email on blur only 
+  const handleEmailBlur = () => {
+    if (email && !isValidEmail(email)) {
+      setEmailError('INVALID EMAIL FORMAT');
+    } else {
+      setEmailError(null);
+    }
+  };
+
+  const handleEmailChange = (val: string) => {
+    setEmail(val);
+    // Clear the inline error as soon as they start fixing it
+    if (emailError && isValidEmail(val)) setEmailError(null);
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     clearError();
     setFormError(null);
 
-    if (!email.trim() || !password.trim()) {
-      setFormError('EMAIL AND PASSPHRASE PROTOCOL REQUIRED');
+    // Client-side validation
+    if (!email.trim()) {
+      setEmailError('EMAIL IS REQUIRED');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setEmailError('INVALID EMAIL FORMAT');
+      return;
+    }
+    if (!password.trim()) {
+      setFormError('PASSPHRASE IS REQUIRED');
       return;
     }
 
     setSubmitting(true);
-    const result = await onLogin(email, password);
-    setSubmitting(false);
-
-    if (!result.success && result.error) {
-      setFormError(result.error);
+    try {
+      const result = await onLogin(email, password);
+      if (!result.success) {
+        // Map backend errors 
+        const raw = (result.error || '').toLowerCase();
+        if (raw.includes('400') || raw.includes('invalid') || raw.includes('credentials') || raw.includes('password') || raw.includes('incorrect')) {
+          setFormError('INCORRECT EMAIL OR PASSWORD');
+        } else if (raw.includes('not found') || raw.includes('no user') || raw.includes('404')) {
+          setFormError('NO ACCOUNT FOUND WITH THAT EMAIL');
+        } else if (raw.includes('429') || raw.includes('rate')) {
+          setFormError('TOO MANY ATTEMPTS — TRY AGAIN LATER');
+        } else if (raw.includes('network') || raw.includes('fetch') || raw.includes('failed')) {
+          setFormError('CONNECTION FAILED — CHECK YOUR NETWORK');
+        } else if (result.error) {
+          setFormError(result.error.toUpperCase());
+        } else {
+          setFormError('LOGIN FAILED — PLEASE TRY AGAIN');
+        }
+      }
+    } catch {
+      setFormError('CONNECTION FAILED — CHECK YOUR NETWORK');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleOAuthRedirect = (provider: 'google' | 'github') => {
     clearError();
     setFormError(null);
-    // Redirect to backend OAuth endpoint
     window.location.href = `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8080'}/auth/${provider}`;
   };
+
+  const displayError = formError || errorMsg;
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 relative select-none">
       <div className="w-full max-w-md bg-[#121212] p-8 shadow-[6px_6px_0px_#000] relative">
-        {/* Close button */}
         {onClose && (
           <button
             onClick={onClose}
@@ -61,7 +108,7 @@ export default function LoginPage({
           </button>
         )}
 
-        {/* Pixel Robot Header */}
+        {/* Header */}
         <div className="flex flex-col items-center gap-2 mb-6">
           <div className="pixel-robot mb-2 animate-bounce">
             <div className="robot-eyes">
@@ -76,68 +123,75 @@ export default function LoginPage({
           </h1>
         </div>
 
-        {/* Input Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
           {/* Email */}
           <div className="flex flex-col gap-1.5">
             <label className="font-press text-[12px] text-neon-green uppercase tracking-wider pl-1">
               EMAIL
             </label>
-            <div className="relative">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="user@core.os"
-                className="w-full bg-[#0a0a0f] border-3 border-black p-3 pl-4 font-mono text-[13px] text-white focus:outline-none focus:ring-0 focus:border-neon-green focus:shadow-[0_0_8px_#00FF66] placeholder:text-gray-700"
-              />
-            </div>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => handleEmailChange(e.target.value)}
+              onBlur={handleEmailBlur}
+              placeholder="user@core.os"
+              className={`w-full bg-[#0a0a0f] border-3 p-3 pl-4 font-mono text-[12px] text-white focus:outline-none focus:ring-0 placeholder:text-gray-700 transition-colors ${
+                emailError
+                  ? 'border-[#FF4444] shadow-[0_0_8px_#FF4444]'
+                  : 'border-black focus:border-neon-green focus:shadow-[0_0_8px_#00FF66]'
+              }`}
+            />
+            {emailError && (
+              <span className="font-mono text-[10px] text-[#FF9999] uppercase pl-1">{emailError}</span>
+            )}
           </div>
 
           {/* Password */}
           <div className="flex flex-col gap-1.5">
             <label className="font-press text-[12px] text-neon-green uppercase tracking-wider pl-1">
-              Password
+              PASSWORD
             </label>
-            <div className="relative">
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-[#0a0a0f] border-3 border-black p-3 pl-4 font-mono text-[13px] text-white focus:outline-none focus:ring-0 focus:border-neon-green focus:shadow-[0_0_8px_#00FF66] placeholder:text-gray-700"
-              />
-            </div>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); if (formError) setFormError(null); }}
+              placeholder="••••••••"
+              className={`w-full bg-[#0a0a0f] border-3 p-3 pl-4 font-mono text-[12px] text-white focus:outline-none focus:ring-0 placeholder:text-gray-700 transition-colors ${
+                displayError && !emailError
+                  ? 'border-[#FF4444] shadow-[0_0_8px_#FF4444]'
+                  : 'border-black focus:border-neon-green focus:shadow-[0_0_8px_#00FF66]'
+              }`}
+            />
           </div>
 
-          {/* Form Error or Banner */}
-          {(formError || errorMsg) && (
+          {/* General error banner */}
+          {displayError && (
             <div className="bg-[#1A0505] border-2 border-[#FF4444] p-3 text-center">
-              <span className="font-mono text-[11px] text-[#FF9999] uppercase leading-tight block">
-                {formError || errorMsg}
+              <span className="font-mono text-[10px] text-[#FF9999] uppercase leading-tight block">
+                {displayError}
               </span>
             </div>
           )}
 
-          {/* Submit Button */}
+          {/* Submit */}
           <button
             type="submit"
             disabled={submitting}
-            className="bg-neon-green text-black font-press text-[12px] font-bold py-4 border-3 border-black shadow-[4px_4px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer uppercase flex items-center justify-center gap-2"
+            className="bg-neon-green text-black font-press text-[12px] font-bold py-4 border-3 border-black shadow-[4px_4px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer uppercase flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <LogIn className="w-4 h-4" />
             <span>{submitting ? 'CONNECTING...' : 'LOGIN'}</span>
           </button>
         </form>
 
-        {/* OR Divider */}
+        {/* Divider */}
         <div className="flex items-center gap-3 my-6">
           <div className="flex-1 h-0.5 bg-black" />
           <span className="font-press text-[10px] text-gray-500 uppercase tracking-widest">— OR —</span>
           <div className="flex-1 h-0.5 bg-black" />
         </div>
 
-        {/* OAuth Row */}
+        {/* OAuth */}
         <div className="grid grid-cols-2 gap-4">
           <button
             onClick={() => handleOAuthRedirect('google')}
@@ -155,7 +209,7 @@ export default function LoginPage({
           </button>
         </div>
 
-        {/* Shift Screen Link */}
+        {/* Register link */}
         <div className="mt-8 text-center flex flex-col items-center gap-1">
           <span className="font-mono text-[10px] text-gray-500 uppercase">NEW_OPERATOR?</span>
           <button
@@ -167,64 +221,46 @@ export default function LoginPage({
         </div>
       </div>
 
-      {/* robot head */}
       <style>{`
         .pixel-robot {
           width: 32px;
           height: 28px;
           background-color: #00FF66;
           border: 3px solid #000;
-          box-shadow: 
-            inset -3px -3px 0 #00AA44,
-            inset 3px 3px 0 #D0FFE0,
-            2px 2px 0 #000;
+          box-shadow: inset -3px -3px 0 #00AA44, inset 3px 3px 0 #D0FFE0, 2px 2px 0 #000;
           position: relative;
         }
-
         .robot-eyes {
           position: absolute;
-          top: 6px;
-          left: 4px;
-          right: 4px;
+          top: 6px; left: 4px; right: 4px;
           height: 6px;
           display: flex;
           justify-content: space-between;
         }
-
         .robot-eye {
-          width: 6px;
-          height: 6px;
+          width: 6px; height: 6px;
           background-color: #00E0FF;
           border: 1.5px solid #000;
         }
-
         .robot-antenna {
           position: absolute;
-          width: 4px;
-          height: 6px;
+          width: 4px; height: 6px;
           background-color: #000;
-          top: -9px;
-          left: 11px;
+          top: -9px; left: 11px;
         }
-
         .robot-antenna::before {
           content: '';
           position: absolute;
-          width: 8px;
-          height: 4px;
+          width: 8px; height: 4px;
           background-color: #FF007A;
           border: 2px solid #000;
-          top: -5px;
-          left: -4px;
+          top: -5px; left: -4px;
         }
-
         .robot-mouth {
           position: absolute;
-          width: 12px;
-          height: 3px;
+          width: 12px; height: 3px;
           background-color: #000;
-          bottom: 5px;
-          left: 7px;
+          bottom: 5px; left: 7px;
         }
       `}</style>
     </div>

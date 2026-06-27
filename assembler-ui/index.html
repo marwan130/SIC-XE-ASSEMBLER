@@ -4,9 +4,40 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark">
     <title>assembler-ui</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: transparent;
+      }
+      #root {
+        background-color: transparent;
+        min-height: 100vh;
+      }
+      
+      #static-loader {
+        position: fixed;
+        inset: 0;
+        background-color: #0A0A0A;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+    </style>
   </head>
   <body>
+    <div id="static-loader">
+      <div class="pixel-chest">
+        <div class="chest-lid"></div>
+      </div>
+      <h2 class="loader-text">INITIALIZING SYSTEM</h2>
+    </div>
+    
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

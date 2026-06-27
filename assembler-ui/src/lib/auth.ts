@@ -19,6 +19,7 @@ export interface LoginRequest {
 export interface RegisterRequest {
   email: string;
   password: string;
+  name: string;
 }
 
 export const authService = {

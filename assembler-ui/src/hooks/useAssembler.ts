@@ -110,10 +110,32 @@ export function useAssembler(isLoggedIn: boolean) {
     }
   }, [isLoggedIn, fetchHistory]);
 
+  // Check for duplicate sessions 
+  const checkForDuplicate = useCallback(() => {
+    const normalizedCode = code.trim();
+    const normalizedTitle = sessionTitle.trim();
+
+    const duplicate = history.find(
+      (session) =>
+        session.title.trim() === normalizedTitle &&
+        session.code.trim() === normalizedCode
+    );
+
+    return duplicate;
+  }, [code, sessionTitle, history]);
+
   // Assemble Code using backend API
   const assemble = async () => {
     setLoading(true);
     setError(null);
+
+    // Check for duplicate before assembling
+    const duplicate = checkForDuplicate();
+    if (duplicate) {
+      setError('DUPLICATE SESSION DETECTED - SAME TITLE AND CODE ALREADY EXISTS');
+      setLoading(false);
+      return { success: false, error: 'DUPLICATE SESSION DETECTED - SAME TITLE AND CODE ALREADY EXISTS' };
+    }
 
     try {
       const response = await api.post('/assemble', {
@@ -132,7 +154,6 @@ export function useAssembler(isLoggedIn: boolean) {
 
       setOutputs(newOutputs);
 
-      // Safe container block: if auth token has expired or 401s here, 
       // handle cleanly without disrupting the output panel display.
       try {
         await fetchHistory();
