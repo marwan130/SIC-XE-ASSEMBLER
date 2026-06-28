@@ -1,4 +1,4 @@
-import { Lock, Palette, ShieldAlert } from 'lucide-react';
+import { Lock, Palette, ShieldAlert, Trash2 } from 'lucide-react';
 import type { User } from '../../lib/auth';
 import type { TerminalTheme } from '../../types';
 
@@ -9,6 +9,7 @@ interface ProfilePageProps {
   customCursor: boolean;
   setCustomCursor: (enable: boolean) => void;
   onWipeData: () => void;
+  onDeleteAccount: () => void;
 }
 
 export default function ProfilePage({
@@ -18,6 +19,7 @@ export default function ProfilePage({
   customCursor,
   setCustomCursor,
   onWipeData,
+  onDeleteAccount,
 }: ProfilePageProps) {
 
   if (!user) return null;
@@ -97,11 +99,17 @@ export default function ProfilePage({
               />
             </div>
 
-            <div className="p-3 bg-[#1A0505] border-2 border-[#FF4444] text-center">
-              <span className="font-mono text-[10px] text-[#FF9999] uppercase block leading-tight">
-                PASSWORD UPDATE DISABLED
-              </span>
-            </div>
+            <button
+              onClick={() => {
+                if (confirm('CRITICAL PROTOCOL: ARE YOU ABSOLUTELY SURE YOU WANT TO DELETE YOUR ACCOUNT? THIS ACTION IS IRREVERSIBLE AND WILL DELETE ALL YOUR DATA.')) {
+                  onDeleteAccount();
+                }
+              }}
+              className="w-full bg-[#FF4444] hover:bg-[#FF6666] text-white font-press text-[10px] font-bold py-3 px-4 border-3 border-black shadow-[3px_3px_0px_#000] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all cursor-pointer uppercase flex items-center justify-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              DELETE_ACCOUNT
+            </button>
           </div>
         </section>
 

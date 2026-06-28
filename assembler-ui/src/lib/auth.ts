@@ -42,6 +42,11 @@ export const authService = {
     localStorage.removeItem('user');
   },
 
+  deleteAccount: async (): Promise<void> => {
+    await api.delete('/auth/delete');
+    authService.logout();
+  },
+
   getCurrentUser: (): User | null => {
     const userStr = localStorage.getItem('user');
     if (userStr) {

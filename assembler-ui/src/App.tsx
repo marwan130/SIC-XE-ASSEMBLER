@@ -78,6 +78,15 @@ export default function App() {
     asm.refreshHistory();
   };
 
+  // Helper: Delete account
+  const handleDeleteAccount = async () => {
+    const result = await auth.deleteAccount();
+    if (result.success) {
+      setAuthScreen('login');
+      setActivePage('assembler');
+    }
+  };
+
   // Handler: Selecting historical snapshot loads details and switches page
   const handleSelectSession = (session: any) => {
     asm.loadSession(session);
@@ -135,6 +144,7 @@ export default function App() {
             customCursor={customCursor}
             setCustomCursor={setCustomCursor}
             onWipeData={handleWipeAllSnapshots}
+            onDeleteAccount={handleDeleteAccount}
           />
         );
 

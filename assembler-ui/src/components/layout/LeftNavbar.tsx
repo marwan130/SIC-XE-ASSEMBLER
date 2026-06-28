@@ -45,7 +45,6 @@ export default function LeftNavbar({
       osc.start();
       osc.stop(ctx.currentTime + 0.05);
     } catch (e) {
-      // Audio context browser safe fallback
     }
   };
 
@@ -61,7 +60,7 @@ export default function LeftNavbar({
         
         {collapsed ? (
           <div className="w-8 h-8 bg-black border-2 border-theme-accent flex items-center justify-center animate-pulse shadow-[0_0_8px_var(--theme-accent)]">
-            <span className="font-press text-[12px] text-theme-accent font-bold">X</span>
+            <img src="/assembler.png" alt="SIC/XE" style={{ width: 32, height: 32, objectFit: 'contain', imageRendering: 'pixelated' }} />
           </div>
         ) : (
           <div className="text-center min-w-[140px]">

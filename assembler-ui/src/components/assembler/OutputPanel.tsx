@@ -67,7 +67,7 @@ export default function OutputPanel({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Failed to generate archive zip', err);
+      // Failed to generate archive zip
     }
   };
 

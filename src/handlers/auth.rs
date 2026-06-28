@@ -10,7 +10,7 @@ use oauth2::{
 use serde::{Deserialize, Serialize};
 
 use crate::models::{User, CreateUserRequest, LoginRequest, AuthResponse};
-use crate::auth::encode_token;
+use crate::auth::{encode_token, AuthenticatedUser};
 use crate::error::AppError;
 
 #[utoipa::path(
@@ -443,4 +443,40 @@ pub async fn github_callback(
     Ok(HttpResponse::Found()
         .append_header(("Location", redirect_url))
         .finish())
+}
+
+#[utoipa::path(
+    delete,
+    path = "/auth/delete",
+    responses(
+        (status = 200, description = "Account deleted successfully"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "Authentication",
+    security(("bearer_auth" = []))
+)]
+pub async fn delete_account(
+    pool: web::Data<PgPool>,
+    auth_user: AuthenticatedUser,
+) -> Result<impl Responder, AppError> {
+    // delete user's assembly jobs first 
+    sqlx::query("DELETE FROM assembly_jobs WHERE user_id = $1")
+        .bind(auth_user.user_id)
+        .execute(pool.get_ref())
+        .await?;
+
+    // delete the user
+    let rows_affected = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(auth_user.user_id)
+        .execute(pool.get_ref())
+        .await?
+        .rows_affected();
+
+    if rows_affected == 0 {
+        return Err(AppError::NotFound("User not found".to_string()));
+    }
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "message": "Account deleted successfully"
+    })))
 }

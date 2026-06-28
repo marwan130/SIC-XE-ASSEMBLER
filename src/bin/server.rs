@@ -5,7 +5,7 @@ use tracing::info;
 use tracing_subscriber;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-use systems_project::handlers::{register, login, me, google_auth, google_callback, github_auth, github_callback, assemble, get_history, get_job, delete_job, delete_all_jobs};
+use systems_project::handlers::{register, login, me, delete_account, google_auth, google_callback, github_auth, github_callback, assemble, get_history, get_job, delete_job, delete_all_jobs};
 use systems_project::ApiDoc;
 
 async fn health() -> impl Responder {
@@ -75,6 +75,7 @@ async fn main() -> std::io::Result<()> {
             .route("/auth/register", web::post().to(register))
             .route("/auth/login", web::post().to(login))
             .route("/auth/me", web::get().to(me))
+            .route("/auth/delete", web::delete().to(delete_account))
             .route("/auth/google", web::get().to(google_auth))
             .route("/auth/google/callback", web::get().to(google_callback))
             .route("/auth/github", web::get().to(github_auth))

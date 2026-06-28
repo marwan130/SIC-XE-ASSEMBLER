@@ -61,17 +61,40 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  useEffect(() => {
+  const checkAuth = useCallback(() => {
     try {
       const authenticated = authService.isAuthenticated();
       setIsLoggedIn(authenticated);
       if (authenticated) setUser(authService.getCurrentUser());
     } catch (err) {
-      console.error('Auth check failed:', err);
       setIsLoggedIn(false);
-    } finally {
-      setIsInitialized(true);
     }
+  }, []);
+
+  useEffect(() => {
+    checkAuth();
+    setIsInitialized(true);
+  }, [checkAuth]);
+
+  // Listen for OAuth login event
+  useEffect(() => {
+    const handleOAuthLogin = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        setUser(customEvent.detail.user);
+        setIsLoggedIn(true);
+      }
+    };
+    const handleOAuthFailed = () => {
+      setIsLoggedIn(false);
+      setUser(null);
+    };
+    window.addEventListener('oauth-login', handleOAuthLogin);
+    window.addEventListener('oauth-login-failed', handleOAuthFailed);
+    return () => {
+      window.removeEventListener('oauth-login', handleOAuthLogin);
+      window.removeEventListener('oauth-login-failed', handleOAuthFailed);
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -109,7 +132,21 @@ export function useAuth() {
     setError(null);
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    setError(null);
+    try {
+      await authService.deleteAccount();
+      setUser(null);
+      setIsLoggedIn(false);
+      return { success: true };
+    } catch (err: any) {
+      const errorMsg = parseAuthError(err);
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }, []);
+
   const clearError = useCallback(() => setError(null), []);
 
-  return { user, isLoggedIn, error, login, register, logout, clearError, isInitialized };
+  return { user, isLoggedIn, error, login, register, logout, deleteAccount, clearError, isInitialized, checkAuth };
 }

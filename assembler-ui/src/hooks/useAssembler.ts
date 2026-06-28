@@ -100,7 +100,7 @@ export function useAssembler(isLoggedIn: boolean) {
       }));
       setHistory(sessions);
     } catch (err) {
-      console.error('Failed to retrieve session history', err);
+      // Failed to retrieve session history
     }
   }, []);
 
@@ -158,7 +158,7 @@ export function useAssembler(isLoggedIn: boolean) {
       try {
         await fetchHistory();
       } catch (historyErr) {
-        console.warn('Assembly completed successfully, but history update caught auth/network error:', historyErr);
+        // Assembly completed successfully, but history update caught auth/network error
       }
 
       return { success: true, outputs: newOutputs };
@@ -179,7 +179,7 @@ export function useAssembler(isLoggedIn: boolean) {
       setHistory(prev => prev.filter(item => item.id !== id));
       return true;
     } catch (err) {
-      console.error('Failed to purge session', err);
+      // Failed to purge session
       return false;
     }
   };
