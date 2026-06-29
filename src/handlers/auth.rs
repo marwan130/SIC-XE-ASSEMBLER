@@ -326,7 +326,13 @@ pub async fn google_callback(
     .fetch_optional(pool.get_ref())
     .await?;
 
-    let user = if let Some(user) = existing_user {
+    let user = if let Some(mut user) = existing_user {
+        sqlx::query("UPDATE users SET oauth_token = $1 WHERE id = $2")
+            .bind(token.access_token().secret())
+            .bind(user.id)
+            .execute(pool.get_ref())
+            .await?;
+        user.oauth_token = Some(token.access_token().secret().clone());
         user
     } else {
         // Create new user
@@ -334,14 +340,15 @@ pub async fn google_callback(
         let now = Utc::now();
 
         sqlx::query(
-            "INSERT INTO users (id, username, name, avatar_url, provider, provider_id, created_at)
-             VALUES ($1, $2, $3, $4, 'google', $5, $6)"
+            "INSERT INTO users (id, username, name, avatar_url, provider, provider_id, oauth_token, created_at)
+             VALUES ($1, $2, $3, $4, 'google', $5, $6, $7)"
         )
         .bind(user_id)
         .bind(&user_info.email)
         .bind(&user_info.name)
         .bind(&user_info.picture)
         .bind(&user_info.id)
+        .bind(token.access_token().secret())
         .bind(now)
         .execute(pool.get_ref())
         .await?;
@@ -354,6 +361,7 @@ pub async fn google_callback(
             avatar_url: user_info.picture,
             provider: "google".to_string(),
             provider_id: Some(user_info.id),
+            oauth_token: Some(token.access_token().secret().clone()),
             created_at: now,
         }
     };
@@ -466,7 +474,13 @@ pub async fn github_callback(
     .fetch_optional(pool.get_ref())
     .await?;
 
-    let user = if let Some(user) = existing_user {
+    let user = if let Some(mut user) = existing_user {
+        sqlx::query("UPDATE users SET oauth_token = $1 WHERE id = $2")
+            .bind(token.access_token().secret())
+            .bind(user.id)
+            .execute(pool.get_ref())
+            .await?;
+        user.oauth_token = Some(token.access_token().secret().clone());
         user
     } else {
         // Create new user
@@ -474,14 +488,15 @@ pub async fn github_callback(
         let now = Utc::now();
 
         sqlx::query(
-            "INSERT INTO users (id, username, name, avatar_url, provider, provider_id, created_at)
-             VALUES ($1, $2, $3, $4, 'github', $5, $6)"
+            "INSERT INTO users (id, username, name, avatar_url, provider, provider_id, oauth_token, created_at)
+             VALUES ($1, $2, $3, $4, 'github', $5, $6, $7)"
         )
         .bind(user_id)
         .bind(&email)
         .bind(&user_info.login)
         .bind(&user_info.avatar_url)
         .bind(&provider_id)
+        .bind(token.access_token().secret())
         .bind(now)
         .execute(pool.get_ref())
         .await?;
@@ -494,6 +509,7 @@ pub async fn github_callback(
             avatar_url: user_info.avatar_url,
             provider: "github".to_string(),
             provider_id: Some(provider_id),
+            oauth_token: Some(token.access_token().secret().clone()),
             created_at: now,
         }
     };
@@ -515,6 +531,58 @@ pub async fn github_callback(
         .finish())
 }
 
+async fn revoke_oauth_token(provider: &str, token: &str) {
+    let http_client = reqwest::Client::new();
+    match provider {
+        "google" => {
+            let res = http_client
+                .post("https://oauth2.googleapis.com/revoke")
+                .form(&[("token", token)])
+                .send()
+                .await;
+            match res {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        tracing::info!("Successfully revoked Google OAuth token");
+                    } else {
+                        tracing::warn!("Failed to revoke Google OAuth token: status {:?}", response.status());
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to send Google OAuth revocation request: {:?}", e);
+                }
+            }
+        }
+        "github" => {
+            if let (Ok(client_id), Ok(client_secret)) = (
+                std::env::var("GITHUB_CLIENT_ID"),
+                std::env::var("GITHUB_CLIENT_SECRET"),
+            ) {
+                let res = http_client
+                    .delete(format!("https://api.github.com/applications/{}/token", client_id))
+                    .basic_auth(&client_id, Some(&client_secret))
+                    .header("User-Agent", "sic-xe-assembler")
+                    .json(&serde_json::json!({ "access_token": token }))
+                    .send()
+                    .await;
+                match res {
+                    Ok(response) => {
+                        if response.status().is_success() {
+                            tracing::info!("Successfully revoked GitHub OAuth token");
+                        } else {
+                            tracing::warn!("Failed to revoke GitHub OAuth token: status {:?}", response.status());
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to send GitHub OAuth revocation request: {:?}", e);
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
 #[utoipa::path(
     delete,
     path = "/auth/delete",
@@ -529,6 +597,19 @@ pub async fn delete_account(
     pool: web::Data<PgPool>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl Responder, AppError> {
+    // 1. Fetch user to check provider and oauth_token
+    let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
+        .bind(auth_user.user_id)
+        .fetch_optional(pool.get_ref())
+        .await?;
+
+    if let Some(user) = user {
+        // 2. Revoke OAuth token if present
+        if let Some(token) = user.oauth_token {
+            revoke_oauth_token(&user.provider, &token).await;
+        }
+    }
+
     // delete user's assembly jobs first 
     sqlx::query("DELETE FROM assembly_jobs WHERE user_id = $1")
         .bind(auth_user.user_id)

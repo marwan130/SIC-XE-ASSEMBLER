@@ -13,6 +13,7 @@ pub struct User {
     pub avatar_url: Option<String>,
     pub provider: String,
     pub provider_id: Option<String>,
+    pub oauth_token: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
