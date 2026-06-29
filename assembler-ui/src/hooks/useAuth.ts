@@ -89,11 +89,17 @@ export function useAuth() {
       setIsLoggedIn(false);
       setUser(null);
     };
+    const handleUnauthorized = () => {
+      setIsLoggedIn(false);
+      setUser(null);
+    };
     window.addEventListener('oauth-login', handleOAuthLogin);
     window.addEventListener('oauth-login-failed', handleOAuthFailed);
+    window.addEventListener('auth-unauthorized', handleUnauthorized);
     return () => {
       window.removeEventListener('oauth-login', handleOAuthLogin);
       window.removeEventListener('oauth-login-failed', handleOAuthFailed);
+      window.removeEventListener('auth-unauthorized', handleUnauthorized);
     };
   }, []);
 
