@@ -1,6 +1,6 @@
 {
   "start": "./bin/server",
   "rust": {
-    "version": "1.85"
+    "version": "1.94"
   }
 }
