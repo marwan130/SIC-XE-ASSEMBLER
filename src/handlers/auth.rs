@@ -91,6 +91,7 @@ pub async fn register(
         avatar_url: None,
         provider: "local".to_string(),
         provider_id: None,
+        oauth_token: None,
         created_at: now,
     };
 
