@@ -102,27 +102,33 @@ export default function App() {
             onSubmit={(e) => e.preventDefault()} 
             className="flex-1 flex flex-col md:flex-row h-full overflow-hidden"
           >
-            {/* Editor panel left */}
-            <CodeEditor
-              code={asm.code}
-              setCode={asm.setCode}
-              title={asm.sessionTitle}
-              setTitle={asm.setSessionTitle}
-              onAssemble={() => asm.assemble()}
-              isAssembling={asm.loading}
-            />
+            {/* Editor panel */}
+            <div className="flex-1 min-h-[50vh] md:min-h-0">
+              <CodeEditor
+                code={asm.code}
+                setCode={asm.setCode}
+                title={asm.sessionTitle}
+                setTitle={asm.setSessionTitle}
+                onAssemble={() => asm.assemble()}
+                isAssembling={asm.loading}
+              />
+            </div>
 
-            {/* Pixel Divider middle */}
-            <PixelDivider />
+            {/* Pixel Divider - hidden on mobile */}
+            <div className="hidden md:block">
+              <PixelDivider />
+            </div>
 
-            {/* Output Panel right */}
-            <OutputPanel
-              outputs={asm.outputs}
-              isLoading={asm.loading}
-              error={asm.error}
-              onClearError={asm.clearError}
-              sessionTitle={asm.sessionTitle}
-            />
+            {/* Output Panel */}
+            <div className="flex-1 min-h-[50vh] md:min-h-0 border-t-4 md:border-t-0 md:border-l-4 border-black">
+              <OutputPanel
+                outputs={asm.outputs}
+                isLoading={asm.loading}
+                error={asm.error}
+                onClearError={asm.clearError}
+                sessionTitle={asm.sessionTitle}
+              />
+            </div>
           </form>
         );
 
@@ -171,7 +177,7 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen text-white overflow-hidden font-sans relative ${getThemeClass()}`}>
+    <div className={`min-h-screen text-white font-sans relative ${getThemeClass()}`}>
       {/* 1. Custom Pixel Stars & CRT overlays */}
       <StarField />
       <CRTOverlay />
@@ -221,7 +227,7 @@ export default function App() {
       )}
 
       {/* 5. Main workstation interface */}
-      <div className="flex h-screen overflow-hidden relative z-30">
+      <div className="flex flex-col md:flex-row h-auto md:h-screen overflow-auto md:overflow-hidden relative z-30">
         {/* Collapsible left navbar */}
         <LeftNavbar
           activePage={activePage}
@@ -241,7 +247,7 @@ export default function App() {
         />
 
         {/* Active Workstation panel */}
-        <main className="flex-1 flex flex-col h-full overflow-hidden bg-black/20">
+        <main className="flex-1 flex flex-col min-h-screen md:h-full bg-black/20">
           {renderActiveContent()}
         </main>
       </div>
