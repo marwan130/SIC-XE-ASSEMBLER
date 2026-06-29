@@ -5,8 +5,7 @@ use tracing::info;
 use tracing_subscriber;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-use systems_project::handlers::{register, login, me, delete_account, google_auth, google_callback, github_auth, github_callback, assemble, get_history, get_job, delete_job, delete_all_jobs};
-use systems_project::ApiDoc;
+use systems_project::handlers::{register, login, me, delete_account, logout, google_auth, google_callback, github_auth, github_callback, assemble, get_history, get_job, delete_job, delete_all_jobs, ApiDoc};
 
 async fn health() -> impl Responder {
     info!("Health check requested");
@@ -18,7 +17,7 @@ async fn health() -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
     
     // Initialize tracing
     tracing_subscriber::fmt()
@@ -29,11 +28,16 @@ async fn main() -> std::io::Result<()> {
         .init();
     
     let bind_address = std::env::var("BIND_ADDRESS")
-        .unwrap_or_else(|_| "127.0.0.1:8080".to_string());
+        .unwrap_or_else(|_| "0.0.0.0:8080".to_string());
     
     let frontend_url = std::env::var("FRONTEND_URL")
         .unwrap_or_else(|_| "http://localhost:5173".to_string());
-    
+
+    let enable_swagger = std::env::var("ENABLE_SWAGGER")
+        .unwrap_or_else(|_| "true".to_string())
+        .parse::<bool>()
+        .unwrap_or(true);
+
     let database_url = std::env::var("DATABASE_URL")
         .expect("DATABASE_URL must be set");
     
@@ -46,7 +50,16 @@ async fn main() -> std::io::Result<()> {
         .expect("Failed to connect to database");
     
     info!("Connected to database successfully");
-    info!("Starting server on {}", bind_address);
+
+    // Run database migrations
+    info!("Admin action: Running database migrations...");
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("Failed to run database migrations");
+    info!("Admin action: Database migrations completed successfully");
+
+    info!("Admin action: Starting server on {}", bind_address);
     info!("CORS allowed origin: {}", frontend_url);
     
     let openapi = ApiDoc::openapi();
@@ -63,19 +76,16 @@ async fn main() -> std::io::Result<()> {
             .allow_any_header()
             .max_age(3600);
         let pool = pool.clone();
-        
-        App::new()
+
+        let mut app = App::new()
             .app_data(web::Data::new(pool))
             .wrap(cors)
-            .service(
-                SwaggerUi::new("/swagger-ui/{_:.*}")
-                    .url("/api-docs/openapi.json", openapi.clone())
-            )
             .route("/health", web::get().to(health))
             .route("/auth/register", web::post().to(register))
             .route("/auth/login", web::post().to(login))
             .route("/auth/me", web::get().to(me))
             .route("/auth/delete", web::delete().to(delete_account))
+            .route("/auth/logout", web::post().to(logout))
             .route("/auth/google", web::get().to(google_auth))
             .route("/auth/google/callback", web::get().to(google_callback))
             .route("/auth/github", web::get().to(github_auth))
@@ -84,7 +94,16 @@ async fn main() -> std::io::Result<()> {
             .route("/history", web::get().to(get_history))
             .route("/history", web::delete().to(delete_all_jobs))
             .route("/history/{id}", web::get().to(get_job))
-            .route("/history/{id}", web::delete().to(delete_job))
+            .route("/history/{id}", web::delete().to(delete_job));
+
+        if enable_swagger {
+            app = app.service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", openapi.clone())
+            );
+        }
+
+        app
     })
     .bind(&bind_address)?
     .run()

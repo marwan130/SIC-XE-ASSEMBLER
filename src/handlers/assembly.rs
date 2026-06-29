@@ -118,6 +118,9 @@ pub async fn assemble(
         .await?;
     }
     
+    // clean up temporary job files from disk
+    let _ = fs::remove_dir_all(&job_dir);
+
     let response = AssembleResponse {
         job_id,
         intermediate,
@@ -241,6 +244,8 @@ pub async fn delete_job(
             .map_err(|e| AppError::InternalError(format!("Failed to delete job directory: {}", e)))?;
     }
 
+    tracing::info!("Deleted resources: Assembly job ID={} deleted by User ID={}", job_uuid, user.user_id);
+
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "message": "Job deleted successfully"
     })))
@@ -283,6 +288,8 @@ pub async fn delete_all_jobs(
         .bind(user.user_id)
         .execute(pool.get_ref())
         .await?;
+
+    tracing::info!("Deleted resources: All assembly jobs deleted by User ID={}", user.user_id);
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "message": "All jobs deleted successfully"

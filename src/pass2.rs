@@ -111,11 +111,11 @@ impl Pass2 {
         table.insert("TIX".to_string(), "2C".to_string());
         table.insert("WD".to_string(), "DC".to_string());
         
-        table.insert("CADD".to_string(), "58".to_string());
-        table.insert("CSUB".to_string(), "5C".to_string());
-        table.insert("CLOAD".to_string(), "50".to_string());
-        table.insert("CSTORE".to_string(), "54".to_string());
-        table.insert("CJUMP".to_string(), "30".to_string());
+        table.insert("CADD".to_string(), "BC".to_string());
+        table.insert("CSUB".to_string(), "8C".to_string());
+        table.insert("CLOAD".to_string(), "E4".to_string());
+        table.insert("CSTORE".to_string(), "FC".to_string());
+        table.insert("CJUMP".to_string(), "CC".to_string());
         
         table
     }
@@ -201,6 +201,7 @@ impl Pass2 {
                 self.locctrs.push(locctr);
                 
                 if instr == "USE" {
+                    self.current_block = operand.clone();
                     self.blocks.push(operand);
                 } else {
                     self.blocks.push(self.current_block.clone());
@@ -298,8 +299,14 @@ impl Pass2 {
     pub fn calculate_displacement(&self, operand: &str, locctr: usize, base_addr: Option<usize>) -> Option<(i32, bool, bool)> {
         let operand_clean = operand.trim_start_matches('#').trim_start_matches('@').trim_end_matches(",X").trim();
         
-        if let Some(target_addr) = self.symbol_table.get(operand_clean) {
-            let target = usize::from_str_radix(target_addr, 16).ok()?;
+        let target_addr_opt = if operand_clean.starts_with('=') {
+            self.literal_table.get(operand_clean).cloned()
+        } else {
+            self.symbol_table.get(operand_clean).cloned()
+        };
+
+        if let Some(target_addr) = target_addr_opt {
+            let target = usize::from_str_radix(&target_addr, 16).ok()?;
             let pc_next = locctr + 3;
             
             let pc_disp = target as i32 - pc_next as i32;
@@ -312,6 +319,8 @@ impl Pass2 {
             } else {
                 Some((pc_disp, use_pc, false))
             }
+        } else if let Ok(val) = operand_clean.parse::<i32>() {
+            Some((val, false, false))
         } else {
             None
         }
@@ -319,63 +328,55 @@ impl Pass2 {
 
     pub fn generate_format3_object_code(&self, instr: &str, operand: &str, locctr: usize, base_addr: Option<usize>) -> Option<String> {
         let opcode = self.get_opcode(instr)?;
-        let (is_immediate, _is_indirect, is_indexed) = self.detect_addressing_mode(operand);
+        let (is_immediate, is_indirect, is_indexed) = self.detect_addressing_mode(operand);
         
         let (disp, use_pc, use_base) = self.calculate_displacement(operand, locctr, base_addr)?;
         
-        let n = if is_immediate { 0 } else { 1 };
-        let i = if is_immediate { 1 } else { 0 };
+        let n = if is_immediate { 0 } else if is_indirect { 1 } else { 1 };
+        let i = if is_immediate { 1 } else if is_indirect { 0 } else { 1 };
         let x = if is_indexed { 1 } else { 0 };
         let b = if use_base { 1 } else { 0 };
         let p = if use_pc { 1 } else { 0 };
         let e = 0;
         
         let opcode_num = usize::from_str_radix(&opcode, 16).ok()?;
-        let opcode_bits = opcode_num >> 2;
         
-        let flags = ((n << 5) | (i << 4) | (x << 3) | (b << 2) | (p << 1) | e) as u8;
-        
-        let disp_bits = if use_base {
-            disp as u16 & 0xFFF
-        } else if use_pc {
-            (disp + 2048) as u16 & 0xFFF
-        } else {
-            disp as u16 & 0xFFF
-        };
-        
-        let first_byte = (opcode_bits << 4) | ((flags >> 2) as usize);
-        let second_byte = (((flags & 0x3) << 4) as usize) | ((disp_bits >> 8) & 0xF) as usize;
-        let third_byte = (disp_bits & 0xFF) as usize;
+        let first_byte = (opcode_num & 0xFC) | (n << 1) | i;
+        let second_byte = (x << 7) | (b << 6) | (p << 5) | (e << 4) | ((disp as usize >> 8) & 0xF);
+        let third_byte = disp as usize & 0xFF;
         
         Some(format!("{:02X}{:02X}{:02X}", first_byte, second_byte, third_byte))
     }
 
     pub fn generate_format4_object_code(&self, instr: &str, operand: &str) -> Option<String> {
         let opcode = self.get_opcode(instr)?;
-        let (is_immediate, _is_indirect, is_indexed) = self.detect_addressing_mode(operand);
+        let (is_immediate, is_indirect, is_indexed) = self.detect_addressing_mode(operand);
         
         let operand_clean = operand.trim_start_matches('#').trim_start_matches('@').trim_end_matches(",X").trim();
         
-        let target_addr = if let Some(addr) = self.symbol_table.get(operand_clean) {
-            usize::from_str_radix(addr, 16).ok()?
+        let target_addr_opt = if operand_clean.starts_with('=') {
+            self.literal_table.get(operand_clean).cloned()
+        } else {
+            self.symbol_table.get(operand_clean).cloned()
+        };
+
+        let target_addr = if let Some(addr) = target_addr_opt {
+            usize::from_str_radix(&addr, 16).ok()?
         } else {
             usize::from_str_radix(operand_clean, 16).ok()?
         };
         
-        let n = if is_immediate { 0 } else { 1 };
-        let i = if is_immediate { 1 } else { 0 };
+        let n = if is_immediate { 0 } else if is_indirect { 1 } else { 1 };
+        let i = if is_immediate { 1 } else if is_indirect { 0 } else { 1 };
         let x = if is_indexed { 1 } else { 0 };
         let b = 0;
         let p = 0;
         let e = 1;
         
         let opcode_num = usize::from_str_radix(&opcode, 16).ok()?;
-        let opcode_bits = opcode_num >> 2;
         
-        let flags = ((n << 5) | (i << 4) | (x << 3) | (b << 2) | (p << 1) | e) as u8;
-        
-        let first_byte = (opcode_bits << 4) | ((flags >> 2) as usize);
-        let second_byte = (((flags & 0x3) << 4) as usize) | ((target_addr >> 16) & 0xF) as usize;
+        let first_byte = (opcode_num & 0xFC) | (n << 1) | i;
+        let second_byte = (x << 7) | (b << 6) | (p << 5) | (e << 4) | ((target_addr >> 16) & 0xF);
         let third_byte = (target_addr >> 8) & 0xFF;
         let fourth_byte = target_addr & 0xFF;
         
@@ -385,13 +386,21 @@ impl Pass2 {
     pub fn generate_format4f_object_code(&self, instr: &str, operand: &str) -> Option<String> {
         let opcode = self.get_opcode(instr)?;
         
-        let parts: Vec<&str> = operand.split(',').collect();
+        let is_cjump = instr.to_uppercase() == "CJUMP";
         
-        let register = if parts.len() >= 1 { parts[0].trim() } else { "" };
-        let memory = if parts.len() >= 2 { parts[1].trim() } else { "" };
-        let condition = if parts.len() >= 3 { parts[2].trim() } else { "" };
-        
-        let reg_val = get_register_value(register);
+        let (reg_val, memory, condition) = if is_cjump {
+            let parts: Vec<&str> = operand.split(',').collect();
+            let memory = if parts.len() >= 1 { parts[0].trim() } else { "" };
+            let condition = if parts.len() >= 2 { parts[1].trim() } else { "" };
+            (0u8, memory, condition)
+        } else {
+            let parts: Vec<&str> = operand.split(',').collect();
+            let register = if parts.len() >= 1 { parts[0].trim() } else { "" };
+            let memory = if parts.len() >= 2 { parts[1].trim() } else { "" };
+            let condition = if parts.len() >= 3 { parts[2].trim() } else { "" };
+            let reg_val = get_register_value(register);
+            (reg_val, memory, condition)
+        };
         
         let condition_flag = match condition.to_uppercase().as_str() {
             "Z" => 0b00,
@@ -409,7 +418,7 @@ impl Pass2 {
         
         let opcode_num = usize::from_str_radix(&opcode, 16).ok()?;
         
-        let first_byte = (((opcode_num & 0xFC) << 2) as u8) | ((reg_val & 0xF) >> 2) as u8;
+        let first_byte = ((opcode_num & 0xFC) as u8) | ((reg_val & 0xF) >> 2) as u8;
         let second_byte = ((reg_val & 0x3) << 6) | ((condition_flag & 0x3) << 4) | ((target_addr >> 16) & 0xF) as u8;
         let third_byte = ((target_addr >> 8) & 0xFF) as u8;
         let fourth_byte = (target_addr & 0xFF) as u8;
@@ -417,22 +426,23 @@ impl Pass2 {
         Some(format!("{:02X}{:02X}{:02X}{:02X}", first_byte, second_byte, third_byte, fourth_byte))
     }
 
-    pub fn handle_literal(&self, literal: &str) -> Option<String> {
-        if let Some(addr) = self.literal_table.get(literal) {
-            return Some(addr.clone());
-        }
-        
+    pub fn get_literal_value(&self, literal: &str) -> Option<String> {
         if literal.starts_with("=C'") {
             let content = literal.trim_start_matches("=C'").trim_end_matches('\'');
             Some(string_to_hex(content))
         } else if literal.starts_with("=X'") {
-            Some(hex_string_to_hex(literal))
+            let cleaned = literal.trim_start_matches('=').trim_start_matches("X'").trim_end_matches('\'').trim();
+            Some(cleaned.to_uppercase())
         } else if literal.starts_with('=') {
             let value = literal.trim_start_matches('=').parse::<usize>().ok()?;
             Some(format!("{:06X}", value))
         } else {
             None
         }
+    }
+
+    pub fn handle_literal(&self, literal: &str) -> Option<String> {
+        self.literal_table.get(literal).cloned()
     }
 
     pub fn handle_directive(&mut self, instr: &str, operand: &str, _locctr: usize) -> Option<String> {
@@ -591,14 +601,17 @@ impl Pass2 {
             let block_base = *self.block_bases.get(&block).unwrap_or(&0);
             let absolute_locctr = locctr + block_base;
 
+            if label == "*" && instr.starts_with('=') {
+                if let Some(obj_code) = self.get_literal_value(&instr) {
+                    self.object_code.insert(absolute_locctr, obj_code);
+                }
+                continue;
+            }
+
             let format = self.detect_instruction_format(&instr);
 
             if let Some(obj_code) = self.handle_directive(&instr, &operand, absolute_locctr) {
                 if !obj_code.is_empty() {
-                    self.object_code.insert(absolute_locctr, obj_code);
-                }
-            } else if operand.starts_with('=') {
-                if let Some(obj_code) = self.handle_literal(&operand) {
                     self.object_code.insert(absolute_locctr, obj_code);
                 }
             } else {
@@ -642,8 +655,14 @@ impl Pass2 {
                 let locctr = self.locctrs[i];
                 let instr = self.instr[i].clone();
                 let operand = if i < self.operands.len() { self.operands[i].clone() } else { "&".to_string() };
-                
+                let format1 = ["FIX", "FLOAT", "HIO", "SIO", "TIO", "NORM"];
+                let format2 = ["ADDR", "CLEAR", "COMPR", "DIVR", "MULR", "RMO", "SHIFTR", "SHIFTL", "SUBR", "SVC", "TIXR"];
+                let format4f = ["CADD", "CSUB", "CLOAD", "CSTORE", "CJUMP"];
+
                 let increment = match instr.as_str() {
+                    _ if format1.contains(&instr.as_str()) => 1,
+                    _ if format2.contains(&instr.as_str()) => 2,
+                    _ if format4f.contains(&instr.as_str()) || instr.starts_with('+') => 4,
                     "WORD" => 3,
                     "RESW" => operand.parse::<usize>().unwrap_or(0) * 3,
                     "RESB" => operand.parse::<usize>().unwrap_or(0),
@@ -656,6 +675,7 @@ impl Pass2 {
                             1
                         }
                     }
+                    "BASE" | "LTORG" | "END" | "START" | "USE" => 0,
                     _ => 3,
                 };
                 

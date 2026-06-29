@@ -5,8 +5,21 @@ use uuid::Uuid;
 use chrono::Utc;
 use oauth2::{
     AuthorizationCode, CsrfToken, RedirectUrl, TokenResponse, basic::BasicClient,
-    reqwest::async_http_client,
+    EndpointSet, EndpointNotSet,
 };
+
+type OauthClient = oauth2::Client<
+    oauth2::StandardErrorResponse<oauth2::basic::BasicErrorResponseType>,
+    oauth2::StandardTokenResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>,
+    oauth2::StandardTokenIntrospectionResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>,
+    oauth2::StandardRevocableToken,
+    oauth2::StandardErrorResponse<oauth2::RevocationErrorResponseType>,
+    EndpointSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointSet,
+>;
 use serde::{Deserialize, Serialize};
 
 use crate::models::{User, CreateUserRequest, LoginRequest, AuthResponse};
@@ -74,6 +87,8 @@ pub async fn register(
     let token = encode_token(&user)
         .map_err(|e| AppError::InternalError(format!("Failed to generate token: {}", e)))?;
 
+    tracing::info!("User registered: ID={}, email='{}', name='{}' (provider=local)", user_id, req.email, req.name);
+
     let response = AuthResponse {
         token,
         user: user.clone(),
@@ -102,19 +117,29 @@ pub async fn login(
     )
     .bind(&req.email)
     .fetch_optional(pool.get_ref())
-    .await?
-    .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+    .await?;
+
+    let user = match user {
+        Some(u) => u,
+        None => {
+            tracing::warn!("Failed login: Invalid credentials for email '{}'", req.email);
+            return Err(AppError::Unauthorized("Invalid credentials".to_string()));
+        }
+    };
 
     // verify password
     let is_valid = verify(&req.password, user.password_hash.as_ref().unwrap())
         .map_err(|e| AppError::InternalError(format!("Failed to verify password: {}", e)))?;
 
     if !is_valid {
-        return Err(AppError::BadRequest("Invalid password".to_string()));
+        tracing::warn!("Failed login: Invalid credentials for email '{}'", user.email);
+        return Err(AppError::Unauthorized("Invalid credentials".to_string()));
     }
 
     let token = encode_token(&user)
         .map_err(|e| AppError::InternalError(format!("Failed to generate token: {}", e)))?;
+
+    tracing::info!("Login success: User ID={}, email='{}' logged in successfully", user.id, user.email);
 
     let response = AuthResponse {
         token,
@@ -156,7 +181,7 @@ pub struct OAuthCallbackQuery {
     pub state: String,
 }
 
-fn google_client() -> Result<BasicClient, AppError> {
+fn google_client() -> Result<OauthClient, AppError> {
     let client_id = std::env::var("GOOGLE_CLIENT_ID")
         .map_err(|_| AppError::InternalError("GOOGLE_CLIENT_ID not set".to_string()))?;
     let client_secret = std::env::var("GOOGLE_CLIENT_SECRET")
@@ -166,16 +191,38 @@ fn google_client() -> Result<BasicClient, AppError> {
 
     let redirect_url = RedirectUrl::new(format!("{}/auth/google/callback", backend_url))
         .map_err(|e| AppError::InternalError(format!("Invalid redirect URL: {}", e)))?;
+    let auth_url = oauth2::AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
+        .map_err(|e| AppError::InternalError(format!("Invalid auth URL: {}", e)))?;
+    let token_url = oauth2::TokenUrl::new("https://oauth2.googleapis.com/token".to_string())
+        .map_err(|e| AppError::InternalError(format!("Invalid token URL: {}", e)))?;
 
-    Ok(BasicClient::new(
-        oauth2::ClientId::new(client_id),
-        Some(oauth2::ClientSecret::new(client_secret)),
-        oauth2::AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
-            .map_err(|e| AppError::InternalError(format!("Invalid auth URL: {}", e)))?,
-        Some(oauth2::TokenUrl::new("https://oauth2.googleapis.com/token".to_string())
-            .map_err(|e| AppError::InternalError(format!("Invalid token URL: {}", e)))?),
-    )
-    .set_redirect_uri(redirect_url))
+    Ok(BasicClient::new(oauth2::ClientId::new(client_id))
+        .set_client_secret(oauth2::ClientSecret::new(client_secret))
+        .set_auth_uri(auth_url)
+        .set_token_uri(token_url)
+        .set_redirect_uri(redirect_url))
+}
+
+fn github_client() -> Result<OauthClient, AppError> {
+    let client_id = std::env::var("GITHUB_CLIENT_ID")
+        .map_err(|_| AppError::InternalError("GITHUB_CLIENT_ID not set".to_string()))?;
+    let client_secret = std::env::var("GITHUB_CLIENT_SECRET")
+        .map_err(|_| AppError::InternalError("GITHUB_CLIENT_SECRET not set".to_string()))?;
+    let backend_url = std::env::var("API_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:8080".to_string());
+
+    let redirect_url = RedirectUrl::new(format!("{}/auth/github/callback", backend_url))
+        .map_err(|e| AppError::InternalError(format!("Invalid redirect URL: {}", e)))?;
+    let auth_url = oauth2::AuthUrl::new("https://github.com/login/oauth/authorize".to_string())
+        .map_err(|e| AppError::InternalError(format!("Invalid auth URL: {}", e)))?;
+    let token_url = oauth2::TokenUrl::new("https://github.com/login/oauth/access_token".to_string())
+        .map_err(|e| AppError::InternalError(format!("Invalid token URL: {}", e)))?;
+
+    Ok(BasicClient::new(oauth2::ClientId::new(client_id))
+        .set_client_secret(oauth2::ClientSecret::new(client_secret))
+        .set_auth_uri(auth_url)
+        .set_token_uri(token_url)
+        .set_redirect_uri(redirect_url))
 }
 
 #[utoipa::path(
@@ -226,24 +273,39 @@ pub async fn google_callback(
     query: web::Query<OAuthCallbackQuery>,
 ) -> Result<impl Responder, AppError> {
     let client = google_client()?;
+    let http_client = reqwest::Client::new();
     
-    let token = client
+    let token = match client
         .exchange_code(AuthorizationCode::new(query.code.clone()))
-        .request_async(async_http_client)
+        .request_async(&http_client)
         .await
-        .map_err(|e| AppError::InternalError(format!("Failed to exchange code: {}", e)))?;
+    {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::warn!("Failed login: Google OAuth code exchange failed");
+            return Err(AppError::InternalError(format!("Failed to exchange code: {}", e)));
+        }
+    };
 
     // Get user info from Google
-    let http_client = reqwest::Client::new();
-    let user_info: GoogleUserInfo = http_client
+    let user_info: GoogleUserInfo = match http_client
         .get("https://www.googleapis.com/oauth2/v2/userinfo")
         .bearer_auth(token.access_token().secret())
         .send()
         .await
-        .map_err(|e| AppError::InternalError(format!("Failed to get user info: {}", e)))?
-        .json()
-        .await
-        .map_err(|e| AppError::InternalError(format!("Failed to parse user info: {}", e)))?;
+    {
+        Ok(res) => match res.json().await {
+            Ok(info) => info,
+            Err(e) => {
+                tracing::warn!("Failed login: Google OAuth user info parse failed");
+                return Err(AppError::InternalError(format!("Failed to parse user info: {}", e)));
+            }
+        },
+        Err(e) => {
+            tracing::warn!("Failed login: Google OAuth request failed");
+            return Err(AppError::InternalError(format!("Failed to get user info: {}", e)));
+        }
+    };
 
     // Check if user exists
     let existing_user = sqlx::query_as::<_, User>(
@@ -289,6 +351,8 @@ pub async fn google_callback(
     let jwt_token = encode_token(&user)
         .map_err(|e| AppError::InternalError(format!("Failed to generate token: {}", e)))?;
 
+    tracing::info!("Login success (Google): User ID={}, email='{}' logged in successfully", user.id, user.email);
+
     let frontend_url = std::env::var("FRONTEND_URL")
         .unwrap_or_else(|_| "http://localhost:5173".to_string());
 
@@ -298,28 +362,6 @@ pub async fn google_callback(
     Ok(HttpResponse::Found()
         .append_header(("Location", redirect_url))
         .finish())
-}
-
-fn github_client() -> Result<BasicClient, AppError> {
-    let client_id = std::env::var("GITHUB_CLIENT_ID")
-        .map_err(|_| AppError::InternalError("GITHUB_CLIENT_ID not set".to_string()))?;
-    let client_secret = std::env::var("GITHUB_CLIENT_SECRET")
-        .map_err(|_| AppError::InternalError("GITHUB_CLIENT_SECRET not set".to_string()))?;
-    let backend_url = std::env::var("API_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:8080".to_string());
-
-    let redirect_url = RedirectUrl::new(format!("{}/auth/github/callback", backend_url))
-        .map_err(|e| AppError::InternalError(format!("Invalid redirect URL: {}", e)))?;
-
-    Ok(BasicClient::new(
-        oauth2::ClientId::new(client_id),
-        Some(oauth2::ClientSecret::new(client_secret)),
-        oauth2::AuthUrl::new("https://github.com/login/oauth/authorize".to_string())
-            .map_err(|e| AppError::InternalError(format!("Invalid auth URL: {}", e)))?,
-        Some(oauth2::TokenUrl::new("https://github.com/login/oauth/access_token".to_string())
-            .map_err(|e| AppError::InternalError(format!("Invalid token URL: {}", e)))?),
-    )
-    .set_redirect_uri(redirect_url))
 }
 
 #[utoipa::path(
@@ -367,25 +409,40 @@ pub async fn github_callback(
     query: web::Query<OAuthCallbackQuery>,
 ) -> Result<impl Responder, AppError> {
     let client = github_client()?;
+    let http_client = reqwest::Client::new();
     
-    let token = client
+    let token = match client
         .exchange_code(AuthorizationCode::new(query.code.clone()))
-        .request_async(async_http_client)
+        .request_async(&http_client)
         .await
-        .map_err(|e| AppError::InternalError(format!("Failed to exchange code: {}", e)))?;
+    {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::warn!("Failed login: GitHub OAuth code exchange failed");
+            return Err(AppError::InternalError(format!("Failed to exchange code: {}", e)));
+        }
+    };
 
     // Get user info from GitHub
-    let http_client = reqwest::Client::new();
-    let user_info: GitHubUserInfo = http_client
+    let user_info: GitHubUserInfo = match http_client
         .get("https://api.github.com/user")
         .bearer_auth(token.access_token().secret())
         .header("User-Agent", "sic-xe-assembler")
         .send()
         .await
-        .map_err(|e| AppError::InternalError(format!("Failed to get user info: {}", e)))?
-        .json()
-        .await
-        .map_err(|e| AppError::InternalError(format!("Failed to parse user info: {}", e)))?;
+    {
+        Ok(res) => match res.json().await {
+            Ok(info) => info,
+            Err(e) => {
+                tracing::warn!("Failed login: GitHub OAuth user info parse failed");
+                return Err(AppError::InternalError(format!("Failed to parse user info: {}", e)));
+            }
+        },
+        Err(e) => {
+            tracing::warn!("Failed login: GitHub OAuth request failed");
+            return Err(AppError::InternalError(format!("Failed to get user info: {}", e)));
+        }
+    };
 
     let provider_id = user_info.id.to_string();
     let email = user_info.email.unwrap_or_else(|| format!("{}@github.local", user_info.login));
@@ -434,6 +491,8 @@ pub async fn github_callback(
     let jwt_token = encode_token(&user)
         .map_err(|e| AppError::InternalError(format!("Failed to generate token: {}", e)))?;
 
+    tracing::info!("Login success (GitHub): User ID={}, email='{}' logged in successfully", user.id, user.email);
+
     let frontend_url = std::env::var("FRONTEND_URL")
         .unwrap_or_else(|_| "http://localhost:5173".to_string());
 
@@ -476,7 +535,25 @@ pub async fn delete_account(
         return Err(AppError::NotFound("User not found".to_string()));
     }
 
+    tracing::info!("Deleted resources: User account and all associated jobs deleted for User ID={}, email='{}'", auth_user.user_id, auth_user.email);
+
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "message": "Account deleted successfully"
+    })))
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/logout",
+    responses(
+        (status = 200, description = "Logged out successfully")
+    ),
+    tag = "Authentication",
+    security(("bearer_auth" = []))
+)]
+pub async fn logout(auth_user: AuthenticatedUser) -> Result<impl Responder, AppError> {
+    tracing::info!("Successful logout: User ID={}, email='{}' logged out", auth_user.user_id, auth_user.email);
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "message": "Logged out successfully"
     })))
 }

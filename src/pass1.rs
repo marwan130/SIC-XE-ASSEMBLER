@@ -21,9 +21,9 @@ impl Pass1 {
     pub fn process_file(&mut self, file_path: &str) -> io::Result<()> {
         let input_file = File::open(file_path)?;
         let reader = io::BufReader::new(input_file);
-        self.lines = reader.lines().filter_map(Result::ok).collect();
+        let raw_lines: Vec<String> = reader.lines().filter_map(Result::ok).collect();
 
-        for line in &self.lines {
+        for line in raw_lines {
             let parts: Vec<String> = line.split(';')
                 .next()
                 .unwrap_or("")
@@ -31,11 +31,16 @@ impl Pass1 {
                 .map(|s| s.to_uppercase())
                 .collect();
 
+            if parts.is_empty() {
+                continue;
+            }
+
             match parts.len() {
                 3 => {
                     self.labels.push(parts[0].trim_end_matches(',').to_string());
                     self.instr.push(parts[1].trim_end_matches(',').to_string());
                     self.ref_data.push(parts[2].trim_end_matches(',').to_string());
+                    self.lines.push(line);
                 }
                 2 => {
                     if parts[0].trim_end_matches(',').to_string() == "*"
@@ -50,15 +55,16 @@ impl Pass1 {
                         self.instr.push(parts[0].trim_end_matches(',').to_string());
                         self.ref_data.push(parts[1].trim_end_matches(',').to_string());
                     }
+                    self.lines.push(line);
                 }
                 1 => {
                     self.labels.push("&".to_string());
                     self.instr.push(parts[0].trim_end_matches(',').to_string());
                     self.ref_data.push("&".to_string());
+                    self.lines.push(line);
                 }
                 _ => {}
             }
-
         }
 
         Ok(())

@@ -1,0 +1,86 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: sic-xe-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sicxe_password}
+      POSTGRES_DB: sic_xe
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d sic_xe" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sic-xe-network
+
+  # Backend API Server
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: sic-xe-backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:sicxe_password@postgres:5432/sic_xe}
+      BIND_ADDRESS: 0.0.0.0:8080
+      FRONTEND_URL: ${FRONTEND_URL:-https://localhost:8443}
+      API_URL: ${API_URL:-https://localhost:8443/api}
+      JWT_SECRET: dev-secret-change-in-production
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      DB_MAX_CONNECTIONS: 10
+      ENABLE_SWAGGER: false
+      RUST_LOG: info
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sic-xe-network
+    restart: unless-stopped
+
+  # Frontend Web App
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        VITE_API_URL: /api
+    container_name: sic-xe-frontend
+    ports:
+      - "8081:80"
+      - "8443:443"
+    depends_on:
+      - backend
+    networks:
+      - sic-xe-network
+    restart: unless-stopped
+
+  # Assembler CLI 
+  assembler:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.assembler
+    container_name: sic-xe-assembler
+    volumes:
+      - ../jobs:/app/jobs
+    networks:
+      - sic-xe-network
+    profiles:
+      - cli
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  sic-xe-network:
+    driver: bridge

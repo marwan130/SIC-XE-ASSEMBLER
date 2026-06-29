@@ -53,8 +53,8 @@ export default function HistoryCard({ session, onSelect, onDelete }: HistoryCard
       </div>
 
       {/* Code Snippet Box */}
-      <div className="bg-[#050508] border-2 border-black/40 group-hover:border-black p-2 rounded-none overflow-hidden select-none">
-        <pre className="font-mono text-[10px] text-gray-400 group-hover:text-black leading-tight overflow-hidden whitespace-pre truncate">
+      <div className="bg-[#050508] group-hover:bg-black border-2 border-black/40 group-hover:border-black p-2 rounded-none overflow-hidden select-none">
+        <pre className="font-mono text-[10px] text-gray-400 group-hover:text-neon-green leading-tight overflow-hidden whitespace-pre truncate">
           {snippet || '. EMPTY FILE'}
         </pre>
       </div>

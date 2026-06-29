@@ -13,6 +13,7 @@ pub enum AppError {
     DatabaseError(String),
     NotFound(String),
     BadRequest(String),
+    Unauthorized(String),
     InternalError(String),
 }
 
@@ -22,6 +23,7 @@ impl fmt::Display for AppError {
             AppError::DatabaseError(msg) => write!(f, "Database error: {}", msg),
             AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
             AppError::BadRequest(msg) => write!(f, "Bad request: {}", msg),
+            AppError::Unauthorized(msg) => write!(f, "Unauthorized: {}", msg),
             AppError::InternalError(msg) => write!(f, "Internal error: {}", msg),
         }
     }
@@ -33,6 +35,7 @@ impl ResponseError for AppError {
             AppError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            AppError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             AppError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

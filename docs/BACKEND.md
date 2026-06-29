@@ -38,7 +38,8 @@ cargo build
 2. Set up environment variables (see `.env.example`):
 ```env
 DATABASE_URL=postgresql://postgres:password@localhost:5432/sic_xe
-BIND_ADDRESS=127.0.0.1:8080
+BIND_ADDRESS=0.0.0.0:8080
+DB_MAX_CONNECTIONS=10
 JWT_SECRET=your-secret-key
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
@@ -46,6 +47,7 @@ GITHUB_CLIENT_ID=your-github-client-id
 GITHUB_CLIENT_SECRET=your-github-client-secret
 FRONTEND_URL=http://localhost:5173
 API_URL=http://localhost:8080
+ENABLE_SWAGGER=true
 ```
 
 3. Run database migrations:
@@ -59,9 +61,25 @@ psql -U postgres -d sic_xe -f migrations/002_create_assembly_jobs.sql
 cargo run --bin server
 ```
 
-The server will start on `http://127.0.0.1:8080`
+The server will start on `http://0.0.0.0:8080`
 
-API documentation available at: `http://127.0.0.1:8080/swagger-ui`
+API documentation available at: `http://localhost:8080/swagger-ui` (if ENABLE_SWAGGER=true)
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | Yes | - | PostgreSQL connection string |
+| `BIND_ADDRESS` | No | `0.0.0.0:8080` | Server bind address (use `0.0.0.0` for Docker) |
+| `DB_MAX_CONNECTIONS` | No | `10` | Database connection pool size |
+| `JWT_SECRET` | Yes | - | Secret key for JWT signing |
+| `FRONTEND_URL` | No | `http://localhost:5173` | Frontend URL for CORS |
+| `API_URL` | No | `http://localhost:8080` | Backend API URL |
+| `ENABLE_SWAGGER` | No | `true` | Enable/disable Swagger UI |
+| `GOOGLE_CLIENT_ID` | No | - | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | No | - | Google OAuth client secret |
+| `GITHUB_CLIENT_ID` | No | - | GitHub OAuth client ID |
+| `GITHUB_CLIENT_SECRET` | No | - | GitHub OAuth client secret |
 
 ## API Endpoints
 

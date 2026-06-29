@@ -15,6 +15,7 @@ use utoipa::OpenApi;
         auth::login,
         auth::me,
         auth::delete_account,
+        auth::logout,
         auth::google_auth,
         auth::google_callback,
         auth::github_auth,
@@ -43,5 +44,5 @@ use utoipa::OpenApi;
 )]
 pub struct ApiDoc;
 
-pub use auth::{register, login, me, delete_account, google_auth, google_callback, github_auth, github_callback};
+pub use auth::{register, login, me, delete_account, logout, google_auth, google_callback, github_auth, github_callback};
 pub use assembly::{assemble, get_history, get_job, delete_job, delete_all_jobs};

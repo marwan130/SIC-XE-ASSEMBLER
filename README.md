@@ -7,6 +7,7 @@ A web-based SIC/XE assembler, featuring user authentication, assembly history, a
 - [Backend Documentation](docs/BACKEND.md) - Rust/Actix-web server setup and API documentation
 - [Frontend Documentation](docs/FRONTEND.md) - React/TypeScript frontend setup and development
 - [Assembler Documentation](docs/ASSEMBLER.md) - SIC/XE assembly language implementation details
+- [Docker Deployment](docker/README.md) - Docker and Railway deployment guide
 
 ## Overview
 

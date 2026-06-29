@@ -1,0 +1,30 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.local/
+.env
+
+# Runtime generated files
+jobs/
+
+# Docker
+docker/.env
+
+# Documentation
+README.md
+docs/
+LICENSE

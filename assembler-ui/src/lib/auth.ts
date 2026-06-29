@@ -38,6 +38,14 @@ export const authService = {
   },
 
   logout: () => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      api.post('/auth/logout', null, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }).catch(() => {});
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   },
