@@ -170,7 +170,7 @@ export default function LeftNavbar({
           {/* Structural Ribbon Arrow Switch */}
           <button
             onClick={() => { playSelectSound(false); setCollapsed(!collapsed); }}
-            className={`h-8 bg-[#1a1a2e] hover:bg-[#00E0FF] text-white hover:text-black border-2 border-black flex items-center justify-center transition-all duration-75 ${
+            className={`h-8 min-w-[32px] bg-[#1a1a2e] hover:bg-[#00E0FF] text-white hover:text-black border-2 border-black flex items-center justify-center transition-all duration-75 shrink-0 ${
               collapsed ? 'w-full' : 'w-10'
             }`}
           >

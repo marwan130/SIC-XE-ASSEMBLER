@@ -1,12 +1,14 @@
 use actix_web::{web, App, HttpServer, HttpResponse, Responder};
 use actix_cors::Cors;
 use actix_governor::{Governor, GovernorConfigBuilder, KeyExtractor};
+use actix_web::dev::ServiceRequest;
 use sqlx::postgres::PgPoolOptions;
 use tracing::info;
 use tracing_subscriber;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 use systems_project::handlers::{register, login, me, delete_account, logout, google_auth, google_callback, github_auth, github_callback, assemble, get_history, get_job, delete_job, delete_all_jobs, ApiDoc};
+use systems_project::error::AppError;
 
 // simple IP-based key extractor for rate limiting
 #[derive(Clone)]
@@ -14,9 +16,9 @@ struct PeerIpKeyExtractor;
 
 impl KeyExtractor for PeerIpKeyExtractor {
     type Key = String;
-    type KeyExtractionError = String;
+    type KeyExtractionError = AppError;
 
-    fn extract(&self, req: &actix_web::HttpRequest) -> Result<Self::Key, Self::KeyExtractionError> {
+    fn extract(&self, req: &ServiceRequest) -> Result<Self::Key, Self::KeyExtractionError> {
         Ok(req
             .peer_addr()
             .map(|addr| addr.ip().to_string())
