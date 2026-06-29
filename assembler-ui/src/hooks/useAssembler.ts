@@ -184,6 +184,26 @@ export function useAssembler(isLoggedIn: boolean) {
     }
   };
 
+  // Wipe all session history
+  const wipeAllHistory = async () => {
+    try {
+      if (isLoggedIn) {
+        await api.delete('/history');
+      }
+      localStorage.removeItem('sicxe_db_sessions');
+      localStorage.removeItem('sicxe_active_code');
+      localStorage.removeItem('sicxe_active_title');
+      localStorage.removeItem('sicxe_active_outputs');
+      setCode(DEFAULT_CODE);
+      setSessionTitle('SYS_CORE_IO');
+      setOutputs(null);
+      setHistory([]);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  };
+
   // Load Session into Workspace
   const loadSession = (session: AssemblySession) => {
     setCode(session.code);
@@ -204,6 +224,7 @@ export function useAssembler(isLoggedIn: boolean) {
     error,
     assemble,
     deleteSession,
+    wipeAllHistory,
     loadSession,
     refreshHistory: fetchHistory,
     clearError: () => setError(null),

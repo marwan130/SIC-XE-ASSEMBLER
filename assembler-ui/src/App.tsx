@@ -72,10 +72,8 @@ export default function App() {
   };
 
   // Helper: Wipe all history
-  const handleWipeAllSnapshots = () => {
-    localStorage.removeItem('sicxe_db_sessions');
-    asm.setOutputs(null);
-    asm.refreshHistory();
+  const handleWipeAllSnapshots = async () => {
+    await asm.wipeAllHistory();
   };
 
   // Helper: Delete account
