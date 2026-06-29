@@ -2,6 +2,7 @@
 name = "systems_project"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.94"
 
 [[bin]]
 name = "systems_project"
