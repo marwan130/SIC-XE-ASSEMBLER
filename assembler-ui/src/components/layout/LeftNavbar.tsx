@@ -163,7 +163,7 @@ export default function LeftNavbar({
             <button
               onClick={() => { playSelectSound(false); onLogout(); }}
               className={`py-2 px-2 flex items-center justify-center bg-black hover:bg-[#FF007A] border-2 border-neutral-900 hover:border-black text-gray-400 hover:text-black transition-all duration-75 font-press text-[9px] w-auto md:w-auto ${
-                collapsed ? 'md:w-0 md:opacity-0 md:pointer-events-none md:p-0 md:border-0' : 'md:flex-1'
+                collapsed ? 'md:hidden' : 'md:flex-1'
               }`}
               title="DISCONNECT HARDWARE NETWORK"
             >
@@ -176,7 +176,7 @@ export default function LeftNavbar({
           <button
             onClick={() => { playSelectSound(false); setCollapsed(!collapsed); }}
             className={`h-8 min-w-[32px] bg-[#1a1a2e] hover:bg-[#00E0FF] text-white hover:text-black border-2 border-black flex items-center justify-center transition-all duration-75 shrink-0 hidden md:flex ${
-              collapsed ? 'w-full' : 'w-10'
+              collapsed ? 'md:w-8' : 'w-10'
             }`}
           >
             {collapsed ? <ChevronRight className="w-4 h-4 animate-pulse" /> : <ChevronLeft className="w-4 h-4" />}

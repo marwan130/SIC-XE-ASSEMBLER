@@ -76,6 +76,35 @@ export function useAuth() {
     setIsInitialized(true);
   }, [checkAuth]);
 
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    let isMounted = true;
+
+    const refreshSession = async () => {
+      try {
+        const currentUser = await authService.refreshCurrentUser();
+        if (isMounted) {
+          setUser(currentUser);
+          setIsLoggedIn(true);
+        }
+      } catch {
+        if (isMounted) {
+          setUser(null);
+          setIsLoggedIn(false);
+        }
+      }
+    };
+
+    refreshSession();
+    const intervalId = window.setInterval(refreshSession, 30000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [isLoggedIn]);
+
   // Listen for OAuth login event
   useEffect(() => {
     const handleOAuthLogin = (e: Event) => {

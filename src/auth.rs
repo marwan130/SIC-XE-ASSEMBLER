@@ -1,9 +1,11 @@
-use actix_web::{dev::Payload, error::ErrorUnauthorized, FromRequest, HttpRequest};
+use actix_web::{dev::Payload, error::ErrorUnauthorized, web, FromRequest, HttpRequest};
+use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
-use std::future::{ready, Ready};
+use sqlx::PgPool;
+use std::future::Future;
+use std::pin::Pin;
 use uuid::Uuid;
-use chrono::{Duration, Utc};
 
 use crate::models::User;
 
@@ -21,49 +23,73 @@ pub struct AuthenticatedUser {
 
 impl FromRequest for AuthenticatedUser {
     type Error = actix_web::Error;
-    type Future = Ready<Result<Self, Self::Error>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>>>>;
 
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
         // extract authorization header
         let auth_header = req
             .headers()
             .get("Authorization")
-            .and_then(|h| h.to_str().ok());
+            .and_then(|h| h.to_str().ok())
+            .map(str::to_owned);
 
-        if let Some(auth_header) = auth_header {
+        let pool = req.app_data::<web::Data<PgPool>>().cloned();
+
+        Box::pin(async move {
+            let Some(auth_header) = auth_header else {
+                return Err(ErrorUnauthorized("Missing or invalid authorization header"));
+            };
+
             if auth_header.starts_with("Bearer ") {
                 let token = &auth_header[7..]; // remove "Bearer " prefix
-                
-                let jwt_secret = std::env::var("JWT_SECRET")
-                    .expect("JWT_SECRET must be set");
+
+                let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
 
                 match decode_token(token, &jwt_secret) {
                     Ok(claims) => {
                         let user_id = match Uuid::parse_str(&claims.sub) {
                             Ok(id) => id,
-                            Err(_) => return ready(Err(ErrorUnauthorized("Invalid user ID in token"))),
+                            Err(_) => return Err(ErrorUnauthorized("Invalid user ID in token")),
                         };
-                        
-                        return ready(Ok(AuthenticatedUser {
+
+                        let Some(pool) = pool else {
+                            return Err(ErrorUnauthorized("Authentication is unavailable"));
+                        };
+
+                        let user_exists = sqlx::query_scalar::<_, bool>(
+                            "SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)",
+                        )
+                        .bind(user_id)
+                        .fetch_one(pool.get_ref())
+                        .await
+                        .map_err(|e| {
+                            tracing::warn!("Failed to verify authenticated user exists: {}", e);
+                            ErrorUnauthorized("Invalid token")
+                        })?;
+
+                        if !user_exists {
+                            return Err(ErrorUnauthorized("User account no longer exists"));
+                        }
+
+                        return Ok(AuthenticatedUser {
                             user_id,
                             username: claims.username,
-                        }));
+                        });
                     }
                     Err(e) => {
                         tracing::warn!("JWT decode error: {}", e);
-                        return ready(Err(ErrorUnauthorized("Invalid token")));
+                        return Err(ErrorUnauthorized("Invalid token"));
                     }
                 }
             }
-        }
 
-        ready(Err(ErrorUnauthorized("Missing or invalid authorization header")))
+            Err(ErrorUnauthorized("Missing or invalid authorization header"))
+        })
     }
 }
 
 pub fn encode_token(user: &User) -> Result<String, jsonwebtoken::errors::Error> {
-    let jwt_secret = std::env::var("JWT_SECRET")
-        .expect("JWT_SECRET must be set");
+    let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
 
     let expiration = Utc::now()
         .checked_add_signed(Duration::days(7))

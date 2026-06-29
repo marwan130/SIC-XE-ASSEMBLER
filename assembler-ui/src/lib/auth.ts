@@ -55,6 +55,12 @@ export const authService = {
     authService.logout();
   },
 
+  refreshCurrentUser: async (): Promise<User> => {
+    const response = await api.get<User>('/auth/me');
+    localStorage.setItem('user', JSON.stringify(response.data));
+    return response.data;
+  },
+
   getCurrentUser: (): User | null => {
     const userStr = localStorage.getItem('user');
     if (userStr) {
