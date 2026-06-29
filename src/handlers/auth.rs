@@ -52,6 +52,17 @@ pub async fn register(
         return Err(AppError::BadRequest("User with this email already exists".to_string()));
     }
 
+    // validate password
+    if req.password.len() < 8 || req.password.len() > 12 {
+        return Err(AppError::BadRequest("Password must be 8-12 characters".to_string()));
+    }
+    if !req.password.chars().any(|c| c.is_alphabetic()) {
+        return Err(AppError::BadRequest("Password must contain letters".to_string()));
+    }
+    if !req.password.chars().any(|c| c.is_numeric()) {
+        return Err(AppError::BadRequest("Password must contain numbers".to_string()));
+    }
+
     // hash password
     let password_hash = hash(&req.password, DEFAULT_COST)
         .map_err(|e| AppError::InternalError(format!("Failed to hash password: {}", e)))?;

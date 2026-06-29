@@ -25,6 +25,8 @@ export default function RegisterPage({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // field errors
@@ -49,7 +51,7 @@ export default function RegisterPage({
 
   const validatePassword = (val: string) => {
     if (!val) return 'PASSWORD IS REQUIRED';
-    if (val.length < 4 || val.length > 12) return 'PASSWORD MUST BE 4–12 CHARACTERS';
+    if (val.length < 8 || val.length > 12) return 'PASSWORD MUST BE 8–12 CHARACTERS';
     if (!/[a-zA-Z]/.test(val)) return 'PASSWORD MUST CONTAIN LETTERS';
     if (!/[0-9]/.test(val)) return 'PASSWORD MUST CONTAIN NUMBERS';
     return null;
@@ -138,7 +140,7 @@ export default function RegisterPage({
     msg ? <span className="font-mono text-[10px] text-[#FF9999] uppercase pl-1 mt-0.5">{msg}</span> : null;
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 relative select-none">
+    <div className="min-h-screen w-full flex items-start justify-center p-4 pt-8 pb-20 relative select-none overflow-y-auto">
       <div className="w-full max-w-md bg-cyber-panel p-8 shadow-[6px_6px_0px_#000] relative border-4 border-black">
         {onClose && (
           <button onClick={onClose} className="absolute top-2 right-2 text-gray-500 hover:text-white font-mono text-[12px] border border-gray-700 px-2 py-1 hover:bg-gray-800 transition-colors">
@@ -196,26 +198,44 @@ export default function RegisterPage({
           <div className="grid grid-cols-2 gap-3 sm:gap-4 items-start">
             <div className="flex flex-col gap-1">
               <label className="font-press text-[12px] text-neon-green uppercase tracking-wider pl-1 truncate">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => handlePasswordChange(e.target.value)}
-                onBlur={handlePasswordBlur}
-                placeholder="********"
-                className={fieldClass(!!passwordError)}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => handlePasswordChange(e.target.value)}
+                  onBlur={handlePasswordBlur}
+                  placeholder="********"
+                  className={fieldClass(!!passwordError)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                >
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
               {fieldErr(passwordError)}
             </div>
             <div className="flex flex-col gap-1">
               <label className="font-press text-[12px] text-neon-green uppercase tracking-wider pl-1 truncate">Re-Entry</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => handleConfirmChange(e.target.value)}
-                onBlur={handleConfirmBlur}
-                placeholder="********"
-                className={fieldClass(!!confirmError)}
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => handleConfirmChange(e.target.value)}
+                  onBlur={handleConfirmBlur}
+                  placeholder="********"
+                  className={fieldClass(!!confirmError)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                >
+                  {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
               {fieldErr(confirmError)}
             </div>
           </div>

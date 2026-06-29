@@ -2,11 +2,14 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8080';
 
+console.log('API URL:', API_URL);
+
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000,
 });
 
 // add request interceptor to include JWT token

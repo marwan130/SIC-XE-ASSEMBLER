@@ -23,6 +23,7 @@ export default function LoginPage({
 }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -97,7 +98,7 @@ export default function LoginPage({
   const displayError = formError || errorMsg;
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 relative select-none">
+    <div className="min-h-screen w-full flex items-start justify-center p-4 pt-8 pb-20 relative select-none overflow-y-auto">
       <div className="w-full max-w-md bg-[#121212] p-8 shadow-[6px_6px_0px_#000] relative">
         {onClose && (
           <button
@@ -151,17 +152,26 @@ export default function LoginPage({
             <label className="font-press text-[12px] text-neon-green uppercase tracking-wider pl-1">
               PASSWORD
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); if (formError) setFormError(null); }}
-              placeholder="••••••••"
-              className={`w-full bg-[#0a0a0f] border-3 p-3 pl-4 font-mono text-[12px] text-white focus:outline-none focus:ring-0 placeholder:text-gray-700 transition-colors ${
-                displayError && !emailError
-                  ? 'border-[#FF4444] shadow-[0_0_8px_#FF4444]'
-                  : 'border-black focus:border-neon-green focus:shadow-[0_0_8px_#00FF66]'
-              }`}
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); if (formError) setFormError(null); }}
+                placeholder="••••••••"
+                className={`w-full bg-[#0a0a0f] border-3 p-3 pl-4 pr-12 font-mono text-[12px] text-white focus:outline-none focus:ring-0 placeholder:text-gray-700 transition-colors ${
+                  displayError && !emailError
+                    ? 'border-[#FF4444] shadow-[0_0_8px_#FF4444]'
+                    : 'border-black focus:border-neon-green focus:shadow-[0_0_8px_#00FF66]'
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+              >
+                {showPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
+            </div>
           </div>
 
           {/* General error banner */}

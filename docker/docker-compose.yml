@@ -28,8 +28,8 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:sicxe_password@postgres:5432/sic_xe}
       BIND_ADDRESS: 0.0.0.0:8080
-      FRONTEND_URL: ${FRONTEND_URL:-https://localhost:8443}
-      API_URL: ${API_URL:-https://localhost:8443/api}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8081}
+      API_URL: ${API_URL:-http://localhost:8080}
       JWT_SECRET: dev-secret-change-in-production
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}

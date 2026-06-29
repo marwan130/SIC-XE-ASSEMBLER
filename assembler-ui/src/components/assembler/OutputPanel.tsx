@@ -80,7 +80,7 @@ export default function OutputPanel({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent p-4 relative min-w-0 border-l border-white/5 select-none">
+    <div className="flex-1 flex flex-col h-auto md:h-full bg-transparent p-4 relative min-w-0 border-l md:border-l border-white/5 select-none">
       <div className="mb-3">
         <OutputTabs activeTab={activeTab} setActiveTab={setActiveTab as any} />
       </div>

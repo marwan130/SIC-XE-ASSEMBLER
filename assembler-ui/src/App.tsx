@@ -100,7 +100,7 @@ export default function App() {
         return (
           <form 
             onSubmit={(e) => e.preventDefault()} 
-            className="flex-1 flex flex-col md:flex-row h-full overflow-hidden"
+            className="flex-1 flex flex-col md:flex-row h-auto md:h-full overflow-visible md:overflow-hidden"
           >
             {/* Editor panel */}
             <div className="flex-1 min-h-[50vh] md:min-h-0">

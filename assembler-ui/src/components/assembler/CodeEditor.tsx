@@ -43,7 +43,7 @@ export default function CodeEditor({
   const lineNumbers = Array.from({ length: Math.max(lineCount, 1) }, (_, i) => i + 1);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent p-4 select-none min-w-0">
+    <div className="flex-1 flex flex-col h-auto md:h-full bg-transparent p-4 select-none min-w-0">
       <div className="flex flex-col gap-1 mb-3">
         <label className="font-press text-[12px] text-gray-400 uppercase tracking-wider">
           SESSION NAME
