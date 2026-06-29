@@ -228,7 +228,7 @@ export default function App() {
 
       {/* 5. Main workstation interface */}
       <div className="flex flex-col md:flex-row h-auto md:h-screen overflow-auto md:overflow-hidden relative z-30">
-        {/* Collapsible left navbar */}
+        {/* Collapsible left navbar - top on mobile, left on desktop */}
         <LeftNavbar
           activePage={activePage}
           setActivePage={(page) => {

@@ -46,7 +46,7 @@ export default function ProfilePage({
         <div className="relative flex-shrink-0 mx-auto sm:mx-0">
           <div className="w-32 h-32 border-3 border-black bg-black overflow-hidden shadow-[3px_3px_0px_#000] flex items-center justify-center">
             <span className="text-theme-accent font-press text-[18px] font-bold">
-              {user.email[0].toUpperCase()}
+              {user.username[0].toUpperCase()}
             </span>
           </div>
           {/* LVL Badge */}
@@ -59,7 +59,7 @@ export default function ProfilePage({
         <div className="flex-1 space-y-3 min-w-0 w-full text-center sm:text-left">
           <div>
             <h3 className="font-press text-[12px] text-theme-accent font-bold uppercase tracking-tight truncate">
-              OPERATOR: {user.email}
+              OPERATOR: {user.username}
             </h3>
             <p className="text-gray-400 font-mono text-[10px] border-l-2 border-theme-accent pl-3 py-0.5 mt-1 select-text">
               "If it fits in 24 bits, it ships."
@@ -93,7 +93,7 @@ export default function ProfilePage({
               <label className="text-[10px] font-press text-gray-500 uppercase">OPERATOR_ID_HANDLE</label>
               <input
                 type="text"
-                value={user.email}
+                value={user.username}
                 disabled
                 className="w-full bg-[#0a0a0f] border-3 border-black p-3 font-mono text-xs text-gray-500 cursor-not-allowed"
               />

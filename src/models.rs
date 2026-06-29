@@ -7,7 +7,7 @@ use utoipa::ToSchema;
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct User {
     pub id: Uuid,
-    pub email: String,
+    pub username: String,
     pub password_hash: Option<String>,
     pub name: String,
     pub avatar_url: Option<String>,
@@ -32,14 +32,14 @@ pub struct AssemblyJob {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreateUserRequest {
-    pub email: String,
+    pub username: String,
     pub password: String,
     pub name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct LoginRequest {
-    pub email: String,
+    pub username: String,
     pub password: String,
 }
 

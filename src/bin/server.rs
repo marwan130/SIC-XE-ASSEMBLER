@@ -1,11 +1,26 @@
 use actix_web::{web, App, HttpServer, HttpResponse, Responder};
 use actix_cors::Cors;
+use actix_governor::{Governor, GovernorConfigBuilder, KeyExtractor};
 use sqlx::postgres::PgPoolOptions;
 use tracing::info;
 use tracing_subscriber;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 use systems_project::handlers::{register, login, me, delete_account, logout, google_auth, google_callback, github_auth, github_callback, assemble, get_history, get_job, delete_job, delete_all_jobs, ApiDoc};
+
+// simple IP-based key extractor for rate limiting
+struct PeerIpKeyExtractor;
+
+impl KeyExtractor for PeerIpKeyExtractor {
+    type Key = String;
+
+    fn extract(&self, req: &actix_web::HttpRequest) -> Result<Self::Key, actix_governor::GovernorError> {
+        Ok(req
+            .peer_addr()
+            .map(|addr| addr.ip().to_string())
+            .unwrap_or_else(|| "unknown".to_string()))
+    }
+}
 
 async fn health() -> impl Responder {
     info!("Health check requested");
@@ -62,6 +77,14 @@ async fn main() -> std::io::Result<()> {
     info!("Admin action: Starting server on {}", bind_address);
     info!("CORS allowed origin: {}", frontend_url);
     
+    // configure rate limiting for auth endpoints
+    let auth_governor_config = GovernorConfigBuilder::default()
+        .per_second(5)
+        .burst_size(10)
+        .key_extractor(PeerIpKeyExtractor)
+        .finish()
+        .unwrap();
+
     let openapi = ApiDoc::openapi();
     
     HttpServer::new(move || {
@@ -76,13 +99,12 @@ async fn main() -> std::io::Result<()> {
             .allow_any_header()
             .max_age(3600);
         let pool = pool.clone();
+        let auth_governor = auth_governor_config.clone();
 
         let mut app = App::new()
             .app_data(web::Data::new(pool))
             .wrap(cors)
             .route("/health", web::get().to(health))
-            .route("/auth/register", web::post().to(register))
-            .route("/auth/login", web::post().to(login))
             .route("/auth/me", web::get().to(me))
             .route("/auth/delete", web::delete().to(delete_account))
             .route("/auth/logout", web::post().to(logout))
@@ -95,6 +117,14 @@ async fn main() -> std::io::Result<()> {
             .route("/history", web::delete().to(delete_all_jobs))
             .route("/history/{id}", web::get().to(get_job))
             .route("/history/{id}", web::delete().to(delete_job));
+
+        // apply rate limiting to auth endpoints
+        app = app.service(
+            web::scope("/auth")
+                .wrap(Governor::new(&auth_governor))
+                .service(web::resource("/register").route(web::post().to(register)))
+                .service(web::resource("/login").route(web::post().to(login)))
+        );
 
         if enable_swagger {
             app = app.service(

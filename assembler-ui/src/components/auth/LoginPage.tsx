@@ -3,15 +3,11 @@ import type { FormEvent } from 'react';
 import { LogIn } from 'lucide-react';
 
 interface LoginPageProps {
-  onLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  onLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   onSwitchToRegister: () => void;
   errorMsg: string | null;
   clearError: () => void;
   onClose?: () => void;
-}
-
-function isValidEmail(val: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
 }
 
 export default function LoginPage({
@@ -21,26 +17,28 @@ export default function LoginPage({
   clearError,
   onClose,
 }: LoginPageProps) {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Validate email on blur only 
-  const handleEmailBlur = () => {
-    if (email && !isValidEmail(email)) {
-      setEmailError('INVALID EMAIL FORMAT');
+  // Validate username on blur only 
+  const handleUsernameBlur = () => {
+    if (username && !username.trim()) {
+      setUsernameError('USERNAME IS REQUIRED');
+    } else if (username && username.length < 3) {
+      setUsernameError('USERNAME MUST BE AT LEAST 3 CHARACTERS');
     } else {
-      setEmailError(null);
+      setUsernameError(null);
     }
   };
 
-  const handleEmailChange = (val: string) => {
-    setEmail(val);
+  const handleUsernameChange = (val: string) => {
+    setUsername(val);
     // Clear the inline error as soon as they start fixing it
-    if (emailError && isValidEmail(val)) setEmailError(null);
+    if (usernameError && val.length >= 3) setUsernameError(null);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -49,12 +47,12 @@ export default function LoginPage({
     setFormError(null);
 
     // Client-side validation
-    if (!email.trim()) {
-      setEmailError('EMAIL IS REQUIRED');
+    if (!username.trim()) {
+      setUsernameError('USERNAME IS REQUIRED');
       return;
     }
-    if (!isValidEmail(email)) {
-      setEmailError('INVALID EMAIL FORMAT');
+    if (username.length < 3) {
+      setUsernameError('USERNAME MUST BE AT LEAST 3 CHARACTERS');
       return;
     }
     if (!password.trim()) {
@@ -64,14 +62,14 @@ export default function LoginPage({
 
     setSubmitting(true);
     try {
-      const result = await onLogin(email, password);
+      const result = await onLogin(username, password);
       if (!result.success) {
         // Map backend errors 
         const raw = (result.error || '').toLowerCase();
         if (raw.includes('400') || raw.includes('invalid') || raw.includes('credentials') || raw.includes('password') || raw.includes('incorrect')) {
-          setFormError('INCORRECT EMAIL OR PASSWORD');
+          setFormError('INCORRECT USERNAME OR PASSWORD');
         } else if (raw.includes('not found') || raw.includes('no user') || raw.includes('404')) {
-          setFormError('NO ACCOUNT FOUND WITH THAT EMAIL');
+          setFormError('NO ACCOUNT FOUND WITH THAT USERNAME');
         } else if (raw.includes('429') || raw.includes('rate')) {
           setFormError('TOO MANY ATTEMPTS — TRY AGAIN LATER');
         } else if (raw.includes('network') || raw.includes('fetch') || raw.includes('failed')) {
@@ -125,25 +123,25 @@ export default function LoginPage({
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
-          {/* Email */}
+          {/* Username */}
           <div className="flex flex-col gap-1.5">
             <label className="font-press text-[12px] text-neon-green uppercase tracking-wider pl-1">
-              EMAIL
+              USERNAME
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => handleEmailChange(e.target.value)}
-              onBlur={handleEmailBlur}
-              placeholder="user@core.os"
+              type="text"
+              value={username}
+              onChange={(e) => handleUsernameChange(e.target.value)}
+              onBlur={handleUsernameBlur}
+              placeholder="user_name"
               className={`w-full bg-[#0a0a0f] border-3 p-3 pl-4 font-mono text-[12px] text-white focus:outline-none focus:ring-0 placeholder:text-gray-700 transition-colors ${
-                emailError
+                usernameError
                   ? 'border-[#FF4444] shadow-[0_0_8px_#FF4444]'
                   : 'border-black focus:border-neon-green focus:shadow-[0_0_8px_#00FF66]'
               }`}
             />
-            {emailError && (
-              <span className="font-mono text-[10px] text-[#FF9999] uppercase pl-1">{emailError}</span>
+            {usernameError && (
+              <span className="font-mono text-[10px] text-[#FF9999] uppercase pl-1">{usernameError}</span>
             )}
           </div>
 
@@ -159,7 +157,7 @@ export default function LoginPage({
                 onChange={(e) => { setPassword(e.target.value); if (formError) setFormError(null); }}
                 placeholder="••••••••"
                 className={`w-full bg-[#0a0a0f] border-3 p-3 pl-4 pr-12 font-mono text-[12px] text-white focus:outline-none focus:ring-0 placeholder:text-gray-700 transition-colors ${
-                  displayError && !emailError
+                  displayError && !usernameError
                     ? 'border-[#FF4444] shadow-[0_0_8px_#FF4444]'
                     : 'border-black focus:border-neon-green focus:shadow-[0_0_8px_#00FF66]'
                 }`}
@@ -185,7 +183,11 @@ export default function LoginPage({
 
           {/* Submit */}
           <button
-            type="submit"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              handleSubmit(e as any);
+            }}
             disabled={submitting}
             className="bg-neon-green text-black font-press text-[12px] font-bold py-4 border-3 border-black shadow-[4px_4px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer uppercase flex items-center justify-center gap-2 disabled:opacity-60"
           >

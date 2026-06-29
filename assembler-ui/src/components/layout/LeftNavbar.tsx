@@ -50,13 +50,13 @@ export default function LeftNavbar({
 
   return (
     <aside 
-      className="h-screen bg-[#0A0A0A] border-r-4 border-black flex flex-col justify-between select-none z-30 shrink-0 transition-[width] duration-75 ease-out relative overflow-hidden"
-      style={{ width: collapsed ? '64px' : '200px' }}
+      className="h-auto md:h-screen bg-[#0A0A0A] border-b-4 md:border-b-0 md:border-r-4 border-black flex flex-row md:flex-col justify-between select-none z-30 shrink-0 transition-all duration-75 ease-out relative overflow-hidden"
+      style={{ width: collapsed ? '64px' : '200px', height: collapsed ? '64px' : 'auto' }}
     >
       {/* Top Header Module / Game Main Marquee */}
-      <div className="p-3 border-b-4 border-black bg-[#121212] flex flex-col items-center justify-center min-h-[72px] relative overflow-hidden">
+      <div className="p-2 md:p-3 border-b-0 md:border-b-4 border-r-0 md:border-r-4 border-black bg-[#121212] flex flex-row md:flex-col items-center justify-center min-h-[64px] md:min-h-[72px] relative overflow-hidden">
         {/* Synthwave horizontal grid light rail */}
-        <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#FF007A] to-transparent"></div>
+        <div className="absolute inset-x-0 md:inset-x-0 top-0 md:top-0 h-[2px] bg-gradient-to-r from-transparent via-[#FF007A] to-transparent"></div>
         
         {collapsed ? (
           <div className="w-8 h-8 bg-black border-2 border-theme-accent flex items-center justify-center animate-pulse shadow-[0_0_8px_var(--theme-accent)]">
@@ -64,12 +64,12 @@ export default function LeftNavbar({
           </div>
         ) : (
           <div className="text-center min-w-[140px]">
-            <h1 className="font-press text-[18px] text-white font-bold tracking-tighter uppercase relative">
+            <h1 className="font-press text-[16px] md:text-[18px] text-white font-bold tracking-tighter uppercase relative">
               SIC/<span className="text-theme-accent animate-pulse">XE</span>
             </h1>
             <div className="flex items-center justify-center gap-1 mt-1">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-theme-accent animate-ping"></span>
-              <span className="font-mono text-[10px] text-theme-accent tracking-widest font-bold">
+              <span className="font-mono text-[9px] md:text-[10px] text-theme-accent tracking-widest font-bold">
                 CPU_LINK_ON
               </span>
             </div>
@@ -77,8 +77,8 @@ export default function LeftNavbar({
         )}
       </div>
 
-      {/* Navigation Stack */}
-      <nav className="flex-1 py-6 flex flex-col gap-3">
+      {/* Navigation Stack - horizontal on mobile, vertical on desktop */}
+      <nav className="flex-1 py-0 md:py-6 flex flex-row md:flex-col gap-1 md:gap-3 px-2 md:px-0 overflow-x-auto md:overflow-x-hidden overflow-y-hidden md:overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activePage === item.id;
@@ -90,7 +90,7 @@ export default function LeftNavbar({
                 playSelectSound(isActive);
                 setActivePage(item.id);
               }}
-              className={`w-[calc(100%-16px)] mx-2 py-3 px-3 flex items-center gap-3 transition-all duration-75 uppercase font-press text-[10px] text-left border-2 ${
+              className={`w-auto md:w-[calc(100%-16px)] mx-0 md:mx-2 py-2 md:py-3 px-2 md:px-3 flex items-center gap-2 md:gap-3 transition-all duration-75 uppercase font-press text-[9px] md:text-[10px] text-left border-2 ${
                 isActive
                   ? 'bg-black text-white border-theme-accent shadow-[3px_3px_0px_var(--theme-accent)]'
                   : 'text-gray-400 bg-[#121212] border-black hover:text-white hover:border-neutral-700 hover:translate-x-0.5'
@@ -101,7 +101,7 @@ export default function LeftNavbar({
                 style={{ color: isActive ? 'var(--theme-accent)' : item.color }}
               />
               {!collapsed && (
-                <span className="truncate flex-1 flex justify-between items-center">
+                <span className="truncate flex-1 flex justify-between items-center hidden md:block">
                   {item.label}
                   {isActive && <span className="text-theme-accent text-[10px] animate-bounce">◀</span>}
                 </span>
@@ -112,7 +112,7 @@ export default function LeftNavbar({
       </nav>
 
       {/* User Controls and Panel Navigation */}
-      <div className="border-t-4 border-black p-2 flex flex-col gap-3 bg-[#121212]">
+      <div className="border-t-0 md:border-t-4 border-l-0 md:border-l-0 border-black p-2 flex flex-row md:flex-col gap-2 md:gap-3 bg-[#121212]">
         
         {/* User Identity Display */}
         {user ? (
@@ -124,12 +124,12 @@ export default function LeftNavbar({
           >
             {/* Level Profile Icon Container */}
             <div className="w-8 h-8 bg-black border-2 border-[#00FF66] text-[#00FF66] flex-shrink-0 flex items-center justify-center font-press text-[12px] font-bold shadow-[inset_0_0_4px_#00FF66]">
-              {user.email[0].toUpperCase()}
+              {user.username[0].toUpperCase()}
             </div>
             {!collapsed && (
-              <div className="flex flex-col min-w-0">
+              <div className="flex flex-col min-w-0 hidden md:block">
                 <span className="font-press text-[10px] text-white truncate font-bold">
-                  {user.email.split('@')[0]}
+                  {user.username}
                 </span>
                 <span className="font-mono text-[12px] text-[#FFF500] uppercase tracking-wider">
                   OPERATOR
@@ -147,7 +147,7 @@ export default function LeftNavbar({
               className="w-full py-2 px-2 flex items-center gap-3 text-gray-400 bg-black hover:text-[#00FF66] border-2 border-neutral-900 hover:border-[#00FF66] transition-all duration-75 uppercase font-press text-[10px] text-left"
             >
               <User className="w-4 h-4 text-[#00FF66] flex-shrink-0" />
-              {!collapsed && <span>CONNECT_SYS</span>}
+              {!collapsed && <span className="hidden md:block">CONNECT_SYS</span>}
             </button>
           )
         )}
@@ -163,7 +163,7 @@ export default function LeftNavbar({
               title="DISCONNECT HARDWARE NETWORK"
             >
               <LogOut className="w-4 h-4 flex-shrink-0" />
-              {!collapsed && <span className="ml-2">EJECT</span>}
+              {!collapsed && <span className="ml-2 hidden md:block">EJECT</span>}
             </button>
           )}
 

@@ -3,15 +3,11 @@ import type { FormEvent } from 'react';
 import { UserPlus, ArrowLeft } from 'lucide-react';
 
 interface RegisterPageProps {
-  onRegister: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
+  onRegister: (username: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
   onSwitchToLogin: () => void;
   errorMsg: string | null;
   clearError: () => void;
   onClose?: () => void;
-}
-
-function isValidEmail(val: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
 }
 
 export default function RegisterPage({
@@ -22,7 +18,7 @@ export default function RegisterPage({
   onClose,
 }: RegisterPageProps) {
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +27,7 @@ export default function RegisterPage({
 
   // field errors
   const [nameError, setNameError] = useState<string | null>(null);
-  const [emailError, setEmailError] = useState<string | null>(null);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -43,9 +39,10 @@ export default function RegisterPage({
     return null;
   };
 
-  const validateEmail = (val: string) => {
-    if (!val.trim()) return 'EMAIL IS REQUIRED';
-    if (!isValidEmail(val)) return 'INVALID EMAIL FORMAT';
+  const validateUsername = (val: string) => {
+    if (!val.trim()) return 'USERNAME IS REQUIRED';
+    if (val.length < 3) return 'USERNAME MUST BE AT LEAST 3 CHARACTERS';
+    if (!/^[a-zA-Z0-9_]+$/.test(val)) return 'USERNAME CAN ONLY CONTAIN LETTERS, NUMBERS, AND UNDERSCORES';
     return null;
   };
 
@@ -68,9 +65,9 @@ export default function RegisterPage({
     setName(val);
     if (nameError && !validateName(val)) setNameError(null);
   };
-  const handleEmailChange = (val: string) => {
-    setEmail(val);
-    if (emailError && !validateEmail(val)) setEmailError(null);
+  const handleUsernameChange = (val: string) => {
+    setUsername(val);
+    if (usernameError && !validateUsername(val)) setUsernameError(null);
   };
   const handlePasswordChange = (val: string) => {
     setPassword(val);
@@ -83,7 +80,7 @@ export default function RegisterPage({
   };
 
   const handleNameBlur   = () => setNameError(validateName(name));
-  const handleEmailBlur  = () => setEmailError(validateEmail(email));
+  const handleUsernameBlur  = () => setUsernameError(validateUsername(username));
   const handlePasswordBlur = () => setPasswordError(validatePassword(password));
   const handleConfirmBlur  = () => setConfirmError(validateConfirm(confirmPassword, password));
 
@@ -94,24 +91,24 @@ export default function RegisterPage({
 
     // Run all validators at once so every field shows its error
     const ne = validateName(name);
-    const ee = validateEmail(email);
+    const ue = validateUsername(username);
     const pe = validatePassword(password);
     const ce = validateConfirm(confirmPassword, password);
 
     setNameError(ne);
-    setEmailError(ee);
+    setUsernameError(ue);
     setPasswordError(pe);
     setConfirmError(ce);
 
-    if (ne || ee || pe || ce) return;
+    if (ne || ue || pe || ce) return;
 
     setSubmitting(true);
     try {
-      const result = await onRegister(email, password, name);
+      const result = await onRegister(username, password, name);
       if (!result.success && result.error) {
         const raw = result.error.toLowerCase();
-        if (raw.includes('email') && (raw.includes('taken') || raw.includes('exists') || raw.includes('already'))) {
-          setEmailError('EMAIL ALREADY IN USE');
+        if (raw.includes('username') && (raw.includes('taken') || raw.includes('exists') || raw.includes('already'))) {
+          setUsernameError('USERNAME ALREADY IN USE');
         } else {
           setFormError(result.error);
         }
@@ -180,18 +177,18 @@ export default function RegisterPage({
             {fieldErr(nameError)}
           </div>
 
-          {/* Email */}
+          {/* Username */}
           <div className="flex flex-col gap-1">
-            <label className="font-press text-[12px] text-neon-green uppercase tracking-wider pl-1">Email</label>
+            <label className="font-press text-[12px] text-neon-green uppercase tracking-wider pl-1">Username</label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => handleEmailChange(e.target.value)}
-              onBlur={handleEmailBlur}
-              placeholder="USER@CORE.OS"
-              className={fieldClass(!!emailError)}
+              type="text"
+              value={username}
+              onChange={(e) => handleUsernameChange(e.target.value)}
+              onBlur={handleUsernameBlur}
+              placeholder="USER_NAME"
+              className={fieldClass(!!usernameError)}
             />
-            {fieldErr(emailError)}
+            {fieldErr(usernameError)}
           </div>
 
           {/* Password + Confirm */}
@@ -250,7 +247,11 @@ export default function RegisterPage({
           )}
 
           <button
-            type="submit"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              handleSubmit(e as any);
+            }}
             disabled={submitting}
             className="bg-neon-green text-black font-press text-[12px] font-bold py-3.5 border-3 border-black shadow-[4px_4px_0px_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer uppercase flex items-center justify-center gap-2 mt-2 disabled:opacity-60"
           >

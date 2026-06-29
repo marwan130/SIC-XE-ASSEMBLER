@@ -10,13 +10,13 @@ use crate::models::User;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String, // User ID
-    pub email: String,
+    pub username: String,
     pub exp: usize, // Expiration time
 }
 
 pub struct AuthenticatedUser {
     pub user_id: Uuid,
-    pub email: String,
+    pub username: String,
 }
 
 impl FromRequest for AuthenticatedUser {
@@ -46,7 +46,7 @@ impl FromRequest for AuthenticatedUser {
                         
                         return ready(Ok(AuthenticatedUser {
                             user_id,
-                            email: claims.email,
+                            username: claims.username,
                         }));
                     }
                     Err(e) => {
@@ -72,7 +72,7 @@ pub fn encode_token(user: &User) -> Result<String, jsonwebtoken::errors::Error> 
 
     let claims = Claims {
         sub: user.id.to_string(),
-        email: user.email.clone(),
+        username: user.username.clone(),
         exp: expiration as usize,
     };
 

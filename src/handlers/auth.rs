@@ -42,14 +42,14 @@ pub async fn register(
 ) -> Result<impl Responder, AppError> {
     // check if user already exists
     let existing_user = sqlx::query_as::<_, User>(
-        "SELECT * FROM users WHERE email = $1"
+        "SELECT * FROM users WHERE username = $1"
     )
-    .bind(&req.email)
+    .bind(&req.username)
     .fetch_optional(pool.get_ref())
     .await?;
 
     if existing_user.is_some() {
-        return Err(AppError::BadRequest("User with this email already exists".to_string()));
+        return Err(AppError::BadRequest("User with this username already exists".to_string()));
     }
 
     // validate password
@@ -72,11 +72,11 @@ pub async fn register(
     let now = Utc::now();
 
     sqlx::query(
-        "INSERT INTO users (id, email, password_hash, name, provider, created_at)
+        "INSERT INTO users (id, username, password_hash, name, provider, created_at)
          VALUES ($1, $2, $3, $4, 'local', $5)"
     )
     .bind(user_id)
-    .bind(&req.email)
+    .bind(&req.username)
     .bind(&password_hash)
     .bind(&req.name)
     .bind(now)
@@ -85,7 +85,7 @@ pub async fn register(
 
     let user = User {
         id: user_id,
-        email: req.email.clone(),
+        username: req.username.clone(),
         password_hash: Some(password_hash),
         name: req.name.clone(),
         avatar_url: None,
@@ -98,7 +98,7 @@ pub async fn register(
     let token = encode_token(&user)
         .map_err(|e| AppError::InternalError(format!("Failed to generate token: {}", e)))?;
 
-    tracing::info!("User registered: ID={}, email='{}', name='{}' (provider=local)", user_id, req.email, req.name);
+    tracing::info!("User registered: ID={}, username='{}', name='{}' (provider=local)", user_id, req.username, req.name);
 
     let response = AuthResponse {
         token,
@@ -122,18 +122,18 @@ pub async fn login(
     pool: web::Data<PgPool>,
     req: web::Json<LoginRequest>,
 ) -> Result<impl Responder, AppError> {
-    // find user by email
+    // find user by username
     let user = sqlx::query_as::<_, User>(
-        "SELECT * FROM users WHERE email = $1 AND provider = 'local'"
+        "SELECT * FROM users WHERE username = $1 AND provider = 'local'"
     )
-    .bind(&req.email)
+    .bind(&req.username)
     .fetch_optional(pool.get_ref())
     .await?;
 
     let user = match user {
         Some(u) => u,
         None => {
-            tracing::warn!("Failed login: Invalid credentials for email '{}'", req.email);
+            tracing::warn!("Failed login: Invalid credentials for username '{}'", req.username);
             return Err(AppError::Unauthorized("Invalid credentials".to_string()));
         }
     };
@@ -143,14 +143,14 @@ pub async fn login(
         .map_err(|e| AppError::InternalError(format!("Failed to verify password: {}", e)))?;
 
     if !is_valid {
-        tracing::warn!("Failed login: Invalid credentials for email '{}'", user.email);
+        tracing::warn!("Failed login: Invalid credentials for username '{}'", user.username);
         return Err(AppError::Unauthorized("Invalid credentials".to_string()));
     }
 
     let token = encode_token(&user)
         .map_err(|e| AppError::InternalError(format!("Failed to generate token: {}", e)))?;
 
-    tracing::info!("Login success: User ID={}, email='{}' logged in successfully", user.id, user.email);
+    tracing::info!("Login success: User ID={}, username='{}' logged in successfully", user.id, user.username);
 
     let response = AuthResponse {
         token,
@@ -334,7 +334,7 @@ pub async fn google_callback(
         let now = Utc::now();
 
         sqlx::query(
-            "INSERT INTO users (id, email, name, avatar_url, provider, provider_id, created_at)
+            "INSERT INTO users (id, username, name, avatar_url, provider, provider_id, created_at)
              VALUES ($1, $2, $3, $4, 'google', $5, $6)"
         )
         .bind(user_id)
@@ -348,7 +348,7 @@ pub async fn google_callback(
 
         User {
             id: user_id,
-            email: user_info.email,
+            username: user_info.email,
             password_hash: None,
             name: user_info.name,
             avatar_url: user_info.picture,
@@ -362,7 +362,7 @@ pub async fn google_callback(
     let jwt_token = encode_token(&user)
         .map_err(|e| AppError::InternalError(format!("Failed to generate token: {}", e)))?;
 
-    tracing::info!("Login success (Google): User ID={}, email='{}' logged in successfully", user.id, user.email);
+    tracing::info!("Login success (Google): User ID={}, username='{}' logged in successfully", user.id, user.username);
 
     let frontend_url = std::env::var("FRONTEND_URL")
         .unwrap_or_else(|_| "http://localhost:5173".to_string());
@@ -474,7 +474,7 @@ pub async fn github_callback(
         let now = Utc::now();
 
         sqlx::query(
-            "INSERT INTO users (id, email, name, avatar_url, provider, provider_id, created_at)
+            "INSERT INTO users (id, username, name, avatar_url, provider, provider_id, created_at)
              VALUES ($1, $2, $3, $4, 'github', $5, $6)"
         )
         .bind(user_id)
@@ -488,7 +488,7 @@ pub async fn github_callback(
 
         User {
             id: user_id,
-            email,
+            username: email,
             password_hash: None,
             name: user_info.login,
             avatar_url: user_info.avatar_url,
@@ -502,7 +502,7 @@ pub async fn github_callback(
     let jwt_token = encode_token(&user)
         .map_err(|e| AppError::InternalError(format!("Failed to generate token: {}", e)))?;
 
-    tracing::info!("Login success (GitHub): User ID={}, email='{}' logged in successfully", user.id, user.email);
+    tracing::info!("Login success (GitHub): User ID={}, username='{}' logged in successfully", user.id, user.username);
 
     let frontend_url = std::env::var("FRONTEND_URL")
         .unwrap_or_else(|_| "http://localhost:5173".to_string());
@@ -546,7 +546,7 @@ pub async fn delete_account(
         return Err(AppError::NotFound("User not found".to_string()));
     }
 
-    tracing::info!("Deleted resources: User account and all associated jobs deleted for User ID={}, email='{}'", auth_user.user_id, auth_user.email);
+    tracing::info!("Deleted resources: User account and all associated jobs deleted for User ID={}, username='{}'", auth_user.user_id, auth_user.username);
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "message": "Account deleted successfully"
@@ -563,7 +563,7 @@ pub async fn delete_account(
     security(("bearer_auth" = []))
 )]
 pub async fn logout(auth_user: AuthenticatedUser) -> Result<impl Responder, AppError> {
-    tracing::info!("Successful logout: User ID={}, email='{}' logged out", auth_user.user_id, auth_user.email);
+    tracing::info!("Successful logout: User ID={}, username='{}' logged out", auth_user.user_id, auth_user.username);
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "message": "Logged out successfully"
     })))

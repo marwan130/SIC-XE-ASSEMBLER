@@ -97,10 +97,10 @@ export function useAuth() {
     };
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (username: string, password: string) => {
     setError(null);
     try {
-      const result = await authService.login({ email, password });
+      const result = await authService.login({ username, password });
       setUser(result.user);
       setIsLoggedIn(true);
       return { success: true };
@@ -111,10 +111,10 @@ export function useAuth() {
     }
   }, []);
 
-  const register = useCallback(async (email: string, password: string, name: string) => {
+  const register = useCallback(async (username: string, password: string, name: string) => {
     setError(null);
     try {
-      const result = await authService.register({ email, password, name });
+      const result = await authService.register({ username, password, name });
       setUser(result.user);
       setIsLoggedIn(true);
       return { success: true };

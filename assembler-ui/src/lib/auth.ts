@@ -2,7 +2,7 @@ import { api } from './api';
 
 export interface User {
   id: string;
-  email: string;
+  username: string;
   created_at: string;
 }
 
@@ -12,12 +12,12 @@ export interface AuthResponse {
 }
 
 export interface LoginRequest {
-  email: string;
+  username: string;
   password: string;
 }
 
 export interface RegisterRequest {
-  email: string;
+  username: string;
   password: string;
   name: string;
 }
