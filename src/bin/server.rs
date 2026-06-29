@@ -9,12 +9,14 @@ use utoipa_swagger_ui::SwaggerUi;
 use systems_project::handlers::{register, login, me, delete_account, logout, google_auth, google_callback, github_auth, github_callback, assemble, get_history, get_job, delete_job, delete_all_jobs, ApiDoc};
 
 // simple IP-based key extractor for rate limiting
+#[derive(Clone)]
 struct PeerIpKeyExtractor;
 
 impl KeyExtractor for PeerIpKeyExtractor {
     type Key = String;
+    type KeyExtractionError = String;
 
-    fn extract(&self, req: &actix_web::HttpRequest) -> Result<Self::Key, actix_governor::GovernorError> {
+    fn extract(&self, req: &actix_web::HttpRequest) -> Result<Self::Key, Self::KeyExtractionError> {
         Ok(req
             .peer_addr()
             .map(|addr| addr.ip().to_string())

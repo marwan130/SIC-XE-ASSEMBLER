@@ -50,7 +50,7 @@ export default function LeftNavbar({
 
   return (
     <aside 
-      className="h-auto md:h-screen bg-[#0A0A0A] border-b-4 md:border-b-0 md:border-r-4 border-black flex flex-row md:flex-col justify-between select-none z-30 shrink-0 transition-all duration-75 ease-out relative overflow-hidden"
+      className="h-auto md:h-screen bg-[#0A0A0A] border-b-4 md:border-b-0 md:border-r-4 border-black flex flex-row md:flex-col justify-between select-none z-30 shrink-0 transition-all duration-75 ease-out relative overflow-hidden w-full md:w-auto"
       style={{ width: collapsed ? '64px' : '200px', height: collapsed ? '64px' : 'auto' }}
     >
       {/* Top Header Module / Game Main Marquee */}

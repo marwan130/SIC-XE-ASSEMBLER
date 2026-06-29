@@ -203,8 +203,8 @@ export default function App() {
 
       {/* 4. Auth modal overlay*/}
       {authScreen && !auth.isLoggedIn && (
-        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
-          <div className="relative w-full max-w-md">
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-start md:items-center justify-center p-4 overflow-y-auto">
+          <div className="relative w-full max-w-md my-4 md:my-0">
             {authScreen === 'login' ? (
               <LoginPage
                 onLogin={auth.login}
